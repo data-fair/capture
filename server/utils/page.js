@@ -63,7 +63,7 @@ exports.open = async (target, lang, timezone, cookies, viewport, animate) => {
     if (!result) throw new Error(`Failed to open "${target}" in context before timeout`)
     return result
   } catch (err) {
-    await safeCleanContext(result.page, cookies, context)
+    await safeCleanContext(result && result.page, cookies, context)
     throw err
   }
 }
