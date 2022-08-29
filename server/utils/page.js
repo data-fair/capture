@@ -132,24 +132,45 @@ const waitForPage = async (page, target, animate) => {
   if (captureTriggered || timeoutReached) {
     // we are done here, capture was already explicitly triggered or we already waited for a long time
   } else {
+    // network was found to be idle, adapt the wait strategy based on some meta
     // Adapt the wait strategy based on the x-capture meta
-    let captureMeta
+
+    // Adapt the wait strategy based on the x-capture meta
+    let captureDelayMeta
     try {
-      captureMeta = await page.$eval(`head > meta[name='x-capture']`, el => el.content)
+      captureDelayMeta = await page.$eval(`head > meta[name='df:capture-delay']`, el => el.content)
     } catch (err) {
       // nothing to do, meta is probably absent
     }
-    if (captureMeta === 'trigger') {
-      debug(`wait for explicit window.triggerCapture call after network was found idle for ${target}`)
+    if (captureDelayMeta) {
+      const delay = Math.min(Number(captureDelayMeta) * 1000, config.screenshotTimeout)
       await Promise.race([
         triggerCapture,
-        new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
+        new Promise(resolve => setTimeout(resolve, delay))
       ])
       if (captureTriggered) debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
-      else debug(`timeout of ${config.screenshotTimeout} was reached for ${target}`)
+      else debug(`delay of ${delay/1000} seconds was reached for ${target}`)
     } else {
-      debug(`wait 1000ms more after idle network for safety ${target}`)
-      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // x-capture is deprecated, kept for retro-compatibility
+      let captureMeta
+      try {
+        captureMeta = await page.$eval(`head > meta[name='x-capture']`, el => el.content)
+      } catch (err) {
+        // nothing to do, meta is probably absent
+      }
+      if (captureMeta === 'trigger') {
+        debug(`wait for explicit window.triggerCapture call after network was found idle for ${target}`)
+        await Promise.race([
+          triggerCapture,
+          new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
+        ])
+        if (captureTriggered) debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
+        else debug(`timeout of ${config.screenshotTimeout} was reached for ${target}`)
+      } else {
+        debug(`wait 1000ms more after idle network for safety ${target}`)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
     }
   }
   return animationActivated
