@@ -149,9 +149,8 @@ const waitForPage = async (page, target, animate) => {
         new Promise(resolve => setTimeout(resolve, delay))
       ])
       if (captureTriggered) debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
-      else debug(`delay of ${delay/1000} seconds was reached for ${target}`)
+      else debug(`delay of ${delay / 1000} seconds was reached for ${target}`)
     } else {
-
       // x-capture is deprecated, kept for retro-compatibility
       let captureMeta
       try {

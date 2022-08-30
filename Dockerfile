@@ -1,34 +1,68 @@
 # See https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md#running-puppeteer-in-docker for the base
 
-FROM node:12.13.0-slim
+############################################################################################################
+# Stage: prepare a base image with all native utils pre-installed, used both by builder and definitive image
+
+FROM node:16.17.0-slim AS nativedeps
 
 # See https://crbug.com/795759
-RUN apt-get update && apt-get install -yq libgconf-2-4
+RUN apt-get update
+RUN apt-get install -y libgconf-2-4
 
 # Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
-# Note: this installs the necessary libs to make the bundled version of Chromium that Puppeteer
-# installs, work.
-RUN apt-get update && apt-get install -y wget --no-install-recommends \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst ttf-freefont \
-      --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get purge --auto-remove -y curl \
-    && rm -rf /src/*.deb
+RUN apt-get install -y wget --no-install-recommends
+RUN apt-get install -y gnupg apt-transport-https ca-certificates
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+RUN apt-get update
+RUN apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf --no-install-recommends
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
 ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 /usr/local/bin/dumb-init
 RUN chmod +x /usr/local/bin/dumb-init
 
-# Uncomment to skip the chromium download when installing puppeteer. If you do,
-# you'll need to launch puppeteer with:
-#     browser.launch({executablePath: 'google-chrome-unstable'})
+# cleanup
+RUN apt-get clean
+RUN apt-get purge -y --auto-remove gnupg apt-transport-https
+
+# skip the chromium download when installing puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
 
+######################################
+# Stage: nodejs dependencies and build
+FROM nativedeps AS builder
+
+WORKDIR /webapp
+ADD package.json .
+ADD package-lock.json .
+
 # deps for gifsicle install
-RUN apt-get update && apt-get install -y dh-autoreconf
+# RUN apt-get install -y dh-autoreconf
+
+# TODO use clean-modules on the same line as npm ci to be lighter in the cache
+RUN npm ci
+RUN ./node_modules/.bin/clean-modules --yes --exclude exceljs/lib/doc/ --exclude mocha/lib/test.js --exclude "**/*.mustache"
+
+# Adding server files
+ADD server server
+ADD config config
+ADD contract contract
+
+# Check quality
+ADD .gitignore .gitignore
+ADD .eslintrc.js .eslintrc.js
+RUN npm run lint
+# ADD test test
+# RUN npm run test
+
+# Cleanup /webapp/node_modules so it can be copied by next stage
+RUN npm prune --production && \
+    rm -rf node_modules/.cache
+
+##################################
+# Stage: main nodejs service stage
+FROM nativedeps
+MAINTAINER "contact@koumoul.com"
 
 # Add user so we don't need --no-sandbox.
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
@@ -43,16 +77,16 @@ USER pptruser
 # The nodejs service
 ENV NODE_ENV production
 WORKDIR /webapp
-ADD package.json .
-ADD package-lock.json .
-RUN npm install --production
+COPY --from=builder /webapp/node_modules /webapp/node_modules
 ADD server server
 ADD config config
 ADD contract contract
-ADD README.md .
+ADD package.json .
+ADD README.md BUILD.json* ./
+ADD LICENSE .
 ADD test test
 
 EXPOSE 8080
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "server"]
+CMD ["node", "--max-http-header-size", "64000", "server"]
