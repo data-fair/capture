@@ -29,13 +29,17 @@ async function auth(req, res, next) {
   } catch (err) {
     return res.status(400).send('Failed to parse url ' + err.message)
   }
+  if (!sameHost && config.onlySameHost) {
+    debug(`${target} is NOT on same host as capture service, do NOT transmit cookies`)
+    return res.status(400).send('Only same host targets are accepted')
+  }
 
-  if (sameHost) {
-    debug(`${target} is on same host as capture service, transmit cookies`, Object.keys(req.cookies))
+  if (sameHost && req.cookies && Object.keys(req.cookies).length && req.query.cookies !== 'false') {
+    debug(`${target} transmit cookies`, Object.keys(req.cookies))
     req.cookies = Object.keys(req.cookies).map(name => ({ name, value: req.cookies[name], url: target }))
   } else {
-    debug(`${target} is NOT on same host as capture service, do NOT transmit cookies`)
-    if (config.onlySameHost) return res.status(400).send('Only same host targets are accepted')
+    debug(`${target} do not transmit cookies`)
+    delete req.cookies
   }
   next()
 }

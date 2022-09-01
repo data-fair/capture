@@ -12,6 +12,10 @@ module.exports = {
     capture: null
   },
   maxAnimationFrames: 1800, // 2 minutes at 15fps
+  puppeteerLaunchOptions: {
+    executablePath: 'google-chrome-unstable',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  },
   prometheus: {
     active: true,
     port: 9090

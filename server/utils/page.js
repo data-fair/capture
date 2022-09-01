@@ -17,7 +17,7 @@ const contextFactory = {
 // start / stop a single puppeteer browser
 let _closed, _browser, _contextPool
 exports.start = async (app) => {
-  _browser = await puppeteer.launch({ executablePath: 'google-chrome-unstable', args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+  _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
   _contextPool = exports.contextPool = genericPool.createPool(contextFactory, { min: 1, max: config.concurrency })
 
   // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
@@ -55,8 +55,14 @@ async function openInContext(context, target, lang, timezone, cookies, viewport,
 }
 
 exports.open = async (target, lang, timezone, cookies, viewport, animate, timer) => {
-  const context = await _contextPool.acquire()
-  timer.step('acquireContext')
+  let context = _browser.defaultBrowserContext()
+  if (cookies) {
+    debug('use incognito context from pool')
+    context = await _contextPool.acquire()
+    timer.step('acquireContext')
+  } else {
+    debug('use default brower context')
+  }
   let result
   try {
     await Promise.race([
@@ -67,7 +73,6 @@ exports.open = async (target, lang, timezone, cookies, viewport, animate, timer)
     return result
   } catch (err) {
     await safeCleanContext(result && result.page, cookies, context)
-    timer.step('clean-content')
     throw err
   }
 }
@@ -80,9 +85,11 @@ exports.close = (page, cookies) => {
 const cleanContext = async (page, cookies, context) => {
   // always empty cookies to prevent inheriting them in next use of the context
   // to be extra sure we delete the cookies that were explicitly passed to page, and check for other cookies that might have been created
-  await page.deleteCookie.apply(page, cookies)
-  const otherCookies = await page.cookies()
-  await page.deleteCookie.apply(page, otherCookies)
+  if (context.isIncognito()) {
+    await page.deleteCookie.apply(page, cookies)
+    const otherCookies = await page.cookies()
+    await page.deleteCookie.apply(page, otherCookies)
+  }
   await page.close()
 }
 
@@ -95,10 +102,10 @@ const safeCleanContext = async (page, cookies, context) => {
       new Promise(resolve => setTimeout(() => { resolve(); timedout = true }, 2000))
     ])
     if (timedout) throw new Error('timed out while cleaning page context')
-    _contextPool.release(context)
+    if (context.isIncognito()) _contextPool.release(context)
   } catch (err) {
     console.error('Failed to clean page properly, do not reuse this context', err)
-    _contextPool.destroy(context)
+    if (context.isIncognito()) _contextPool.destroy(context)
   }
 }
 

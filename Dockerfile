@@ -52,8 +52,8 @@ ADD contract contract
 ADD .gitignore .gitignore
 ADD .eslintrc.js .eslintrc.js
 RUN npm run lint
-# ADD test test
-# RUN npm run test
+ADD test test
+RUN npm run test
 
 # Cleanup /webapp/node_modules so it can be copied by next stage
 RUN npm prune --production && \

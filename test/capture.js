@@ -32,7 +32,7 @@ describe('capture', () => {
     assert.equal(res.headers['content-disposition'], 'attachment; filename="screenshot.png"')
   })
 
-  it('make a few prints of a page', async () => {
+  it.only('make a few prints of a page', async () => {
     let res = await ax.get('print', { params: { target }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'application/pdf')
@@ -54,6 +54,16 @@ describe('capture', () => {
     assert.equal(res.status, 200)
     content = await pdfParse(res.data)
     assert.ok(content.text.includes('id_token=my_token'))
+
+    res = await ax.get('print', { params: { target, cookies: false }, headers: { cookie: 'id_token=my_token' }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    content = await pdfParse(res.data)
+    assert.equal(content.text.includes('id_token=my_token'), false)
+
+    res = await ax.get('print', { params: { target }, headers: { cookie: '' }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    content = await pdfParse(res.data)
+    assert.equal(content.text.includes('id_token=my_token'), false)
   })
 
   it('make concurrent prints with separate contexts', async () => {
@@ -90,7 +100,7 @@ describe('capture', () => {
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'application/pdf')
     const content = await pdfParse(res.data)
-    assert.ok(content.text.includes('count3') || content.text.includes('count:4') || content.text.includes('count:5'))
+    assert.ok(content.text.includes('count3') || content.text.includes('count:4') || content.text.includes('count:5'), content.text)
   })
 
   it('make animated gif screenshot of a page', async () => {
