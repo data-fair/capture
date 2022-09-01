@@ -18,6 +18,10 @@ module.exports = {
     __name: 'CONCURRENCY',
     __format: 'json'
   },
+  concurrencyPublic: {
+    __name: 'CONCURRENCY_PUBLIC',
+    __format: 'json'
+  },
   defaultLang: 'DEFAULT_LANG',
   defaultTimezone: 'DEFAULT_TIMEZONE',
   secretKeys: {

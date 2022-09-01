@@ -32,7 +32,7 @@ describe('capture', () => {
     assert.equal(res.headers['content-disposition'], 'attachment; filename="screenshot.png"')
   })
 
-  it.only('make a few prints of a page', async () => {
+  it('make a few prints of a page', async () => {
     let res = await ax.get('print', { params: { target }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'application/pdf')
@@ -100,7 +100,7 @@ describe('capture', () => {
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'application/pdf')
     const content = await pdfParse(res.data)
-    assert.ok(content.text.includes('count3') || content.text.includes('count:4') || content.text.includes('count:5'), content.text)
+    assert.ok(content.text.includes('count:3') || content.text.includes('count:4') || content.text.includes('count:5'), content.text)
   })
 
   it('make animated gif screenshot of a page', async () => {

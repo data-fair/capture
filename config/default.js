@@ -6,6 +6,7 @@ module.exports = {
   onlySameHost: false,
   screenshotTimeout: 20000,
   concurrency: 5,
+  concurrencyPublic: null,
   defaultLang: 'fr-FR',
   defaultTimezone: 'Europe/Paris',
   secretKeys: {

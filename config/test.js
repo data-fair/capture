@@ -3,5 +3,8 @@ module.exports = {
   puppeteerLaunchOptions: {
     executablePath: 'google-chrome',
     args: ['--no-sandbox', '--disable-setuid-sandbox']
+  },
+  prometheus: {
+    active: false
   }
 }

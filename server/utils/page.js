@@ -13,12 +13,23 @@ const contextFactory = {
     await context.close()
   }
 }
+const publicPageFactory = {
+  async create() {
+    // create pages in incognito contexts so that cookies are not shared
+    // each context is used sequentially only because of cookies or other states conflicts
+    return _browser.defaultBrowserContext().newPage()
+  },
+  async destroy(page) {
+    await page.close()
+  }
+}
 
 // start / stop a single puppeteer browser
-let _closed, _browser, _contextPool
+let _closed, _browser, _contextPool, _publicPagePool
 exports.start = async (app) => {
   _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
   _contextPool = exports.contextPool = genericPool.createPool(contextFactory, { min: 1, max: config.concurrency })
+  _publicPagePool = exports.publicPagePool = genericPool.createPool(publicPageFactory, { min: 1, max: config.concurrencyPublic || config.concurrency })
 
   // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
   _browser.on('disconnected', async () => {
@@ -44,7 +55,7 @@ exports.stop = async () => {
 }
 
 async function openInContext(context, target, lang, timezone, cookies, viewport, animate, timer) {
-  const page = await context.newPage()
+  const page = context ? await context.newPage() : await _publicPagePool.acquire()
   timer.step('newPage')
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.setCookie.apply(page, cookies)
@@ -55,7 +66,7 @@ async function openInContext(context, target, lang, timezone, cookies, viewport,
 }
 
 exports.open = async (target, lang, timezone, cookies, viewport, animate, timer) => {
-  let context = _browser.defaultBrowserContext()
+  let context
   if (cookies) {
     debug('use incognito context from pool')
     context = await _contextPool.acquire()
@@ -82,30 +93,35 @@ exports.close = (page, cookies) => {
   safeCleanContext(page, cookies, page.browserContext())
 }
 
-const cleanContext = async (page, cookies, context) => {
+const cleanIncognitoContext = async (page, cookies, context) => {
   // always empty cookies to prevent inheriting them in next use of the context
   // to be extra sure we delete the cookies that were explicitly passed to page, and check for other cookies that might have been created
-  if (context.isIncognito()) {
-    await page.deleteCookie.apply(page, cookies)
-    const otherCookies = await page.cookies()
-    await page.deleteCookie.apply(page, otherCookies)
-  }
+  await page.deleteCookie.apply(page, cookies)
+  const otherCookies = await page.cookies()
+  await page.deleteCookie.apply(page, otherCookies)
   await page.close()
 }
 
 const safeCleanContext = async (page, cookies, context) => {
-  if (!page) return _contextPool.destroy(context)
-  try {
-    let timedout
-    await Promise.race([
-      await cleanContext(page, cookies, context),
-      new Promise(resolve => setTimeout(() => { resolve(); timedout = true }, 2000))
-    ])
-    if (timedout) throw new Error('timed out while cleaning page context')
-    if (context.isIncognito()) _contextPool.release(context)
-  } catch (err) {
-    console.error('Failed to clean page properly, do not reuse this context', err)
-    if (context.isIncognito()) _contextPool.destroy(context)
+  if (!page) {
+    if (context && context.isIncognito()) _contextPool.destroy(context)
+    return
+  }
+  if (context.isIncognito()) {
+    try {
+      let timedout
+      await Promise.race([
+        await cleanIncognitoContext(page, cookies, context),
+        new Promise(resolve => setTimeout(() => { resolve(); timedout = true }, 2000))
+      ])
+      if (timedout) throw new Error('timed out while cleaning page context')
+      _contextPool.release(context)
+    } catch (err) {
+      console.error('Failed to clean page properly, do not reuse this context', err)
+      _contextPool.destroy(context)
+    }
+  } else {
+    return _publicPagePool.destroy(page)
   }
 }
 
@@ -126,10 +142,9 @@ const waitForPage = async (page, target, animate, timer) => {
 
   try {
     // wait for network inactivity, but it can be interrupted if triggerCapture is called
-    await Promise.race([
-      page.goto(target, { waitUntil: 'networkidle0', timeout: config.screenshotTimeout }),
-      triggerCapture
-    ])
+    const waitOptions = { waitUntil: 'networkidle0', timeout: config.screenshotTimeout }
+    await Promise.race([ page.goto(target, waitOptions), triggerCapture ])
+
     if (captureTriggered) {
       timer.step('wait1-capture-triggered')
       debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
