@@ -125,7 +125,7 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
   const top = req.query.top || '1.5cm'
   const bottom = req.query.bottom || '1.5cm'
 
-  const { page } = await pageUtils.open(target, req.query.lang, req.query.timezone, req.cookies)
+  const { page } = await pageUtils.open(target, req.query.lang, req.query.timezone, req.cookies, null, false, timer)
   debug(`page is opened ${target}`)
   try {
     const pdfOptions = { landscape, pageRanges, format, margin: { left, right, top, bottom }, printBackground: true }
