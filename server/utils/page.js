@@ -18,7 +18,7 @@ const contextFactory = {
 let _closed, _browser, _contextPool
 exports.start = async (app) => {
   _browser = await puppeteer.launch({ executablePath: 'google-chrome-unstable', args: ['--no-sandbox', '--disable-setuid-sandbox'] })
-  _contextPool = genericPool.createPool(contextFactory, { min: 1, max: config.concurrency })
+  _contextPool = exports.contextPool = genericPool.createPool(contextFactory, { min: 1, max: config.concurrency })
 
   // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
   _browser.on('disconnected', async () => {
@@ -43,27 +43,31 @@ exports.stop = async () => {
   }
 }
 
-async function openInContext(context, target, lang, timezone, cookies, viewport, animate) {
+async function openInContext(context, target, lang, timezone, cookies, viewport, animate, timer) {
   const page = await context.newPage()
+  timer.step('newPage')
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.setCookie.apply(page, cookies)
   if (viewport) await page.setViewport(viewport)
-  const animationActivated = await waitForPage(page, target, animate)
+  timer.step('configurePage')
+  const animationActivated = await waitForPage(page, target, animate, timer)
   return { page, animationActivated }
 }
 
-exports.open = async (target, lang, timezone, cookies, viewport, animate) => {
+exports.open = async (target, lang, timezone, cookies, viewport, animate, timer) => {
   const context = await _contextPool.acquire()
+  timer.step('acquireContext')
   let result
   try {
     await Promise.race([
-      openInContext(context, target, lang, timezone, cookies, viewport, animate).then(r => { result = r }),
+      openInContext(context, target, lang, timezone, cookies, viewport, animate, timer).then(r => { result = r }),
       new Promise(resolve => setTimeout(resolve, config.screenshotTimeout * 2))
     ])
     if (!result) throw new Error(`Failed to open "${target}" in context before timeout`)
     return result
   } catch (err) {
     await safeCleanContext(result && result.page, cookies, context)
+    timer.step('clean-content')
     throw err
   }
 }
@@ -100,7 +104,7 @@ const safeCleanContext = async (page, cookies, context) => {
 
 // quite complex strategy to wait for the page to be ready for capture.
 // it can either explitly call a triggerCapture function or we wait for idle network + 1s
-const waitForPage = async (page, target, animate) => {
+const waitForPage = async (page, target, animate, timer) => {
   // Prepare a function that the page can call to signal that it is ready for capture
   let captureTriggered = false
   let timeoutReached = false
@@ -119,11 +123,17 @@ const waitForPage = async (page, target, animate) => {
       page.goto(target, { waitUntil: 'networkidle0', timeout: config.screenshotTimeout }),
       triggerCapture
     ])
-    if (captureTriggered) debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
-    else debug(`network was idle during 500ms for ${target}`)
+    if (captureTriggered) {
+      timer.step('wait1-capture-triggered')
+      debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
+    } else {
+      timer.step('wait1-network-idle')
+      debug(`network was idle during 500ms for ${target}`)
+    }
   } catch (err) {
     if (err.name !== 'TimeoutError') throw err
     else {
+      timer.step('wait1-timeout')
       debug(`timeout of ${config.screenshotTimeout} was reached for ${target}`)
       timeoutReached = true
     }
@@ -142,14 +152,20 @@ const waitForPage = async (page, target, animate) => {
     } catch (err) {
       // nothing to do, meta is probably absent
     }
+    timer.step('wait2-get-meta1')
     if (captureDelayMeta) {
       const delay = Math.min(Number(captureDelayMeta) * 1000, config.screenshotTimeout)
       await Promise.race([
         triggerCapture,
         new Promise(resolve => setTimeout(resolve, delay))
       ])
-      if (captureTriggered) debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
-      else debug(`delay of ${delay / 1000} seconds was reached for ${target}`)
+      if (captureTriggered) {
+        timer.step('wait2-capture-triggered')
+        debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
+      } else {
+        timer.step('wait2-delay')
+        debug(`delay of ${delay / 1000} seconds was reached for ${target}`)
+      }
     } else {
       // x-capture is deprecated, kept for retro-compatibility
       let captureMeta
@@ -158,17 +174,24 @@ const waitForPage = async (page, target, animate) => {
       } catch (err) {
         // nothing to do, meta is probably absent
       }
+      timer.step('wait2-get-meta2')
       if (captureMeta === 'trigger') {
         debug(`wait for explicit window.triggerCapture call after network was found idle for ${target}`)
         await Promise.race([
           triggerCapture,
           new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
         ])
-        if (captureTriggered) debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
-        else debug(`timeout of ${config.screenshotTimeout} was reached for ${target}`)
+        if (captureTriggered) {
+          timer.step('wait2-capture-triggered')
+          debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
+        } else {
+          timer.step('wait2-timeout')
+          debug(`timeout of ${config.screenshotTimeout} was reached for ${target}`)
+        }
       } else {
         debug(`wait 1000ms more after idle network for safety ${target}`)
         await new Promise(resolve => setTimeout(resolve, 1000))
+        timer.step('wait2-1s')
       }
     }
   }

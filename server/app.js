@@ -6,6 +6,7 @@ const eventToPromise = require('event-to-promise')
 const proxy = require('http-proxy-middleware')
 const capture = require('./routers/capture')
 const pageUtils = require('./utils/page')
+const prometheus = require('./utils/prometheus')
 const apiDocs = require('../contract/api-docs')
 const app = express()
 
@@ -37,7 +38,10 @@ app.use('/test', express.static('./test'))
 // Error management
 app.use((err, req, res, next) => {
   const status = err.statusCode || err.status || 500
-  if (status === 500) console.error('Error in express route', err)
+  if (status === 500) {
+    console.error('(http) Error in express route', req.originalUrl, err)
+    prometheus.internalError.inc({ errorCode: 'http' })
+  }
   if (!res.headersSent) res.status(status).send(err.message)
 })
 
@@ -47,6 +51,9 @@ exports.run = async () => {
   await pageUtils.start()
   server.listen(config.port)
   await eventToPromise(server, 'listening')
+  if (config.prometheus.active) {
+    await prometheus.start()
+  }
   return app
 }
 

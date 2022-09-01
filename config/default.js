@@ -11,5 +11,9 @@ module.exports = {
   secretKeys: {
     capture: null
   },
-  maxAnimationFrames: 1800 // 2 minutes at 15fps
+  maxAnimationFrames: 1800, // 2 minutes at 15fps
+  prometheus: {
+    active: true,
+    port: 9090
+  }
 }

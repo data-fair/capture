@@ -22,5 +22,12 @@ module.exports = {
   defaultTimezone: 'DEFAULT_TIMEZONE',
   secretKeys: {
     capture: 'SECRET_CAPTURE'
+  },
+  prometheus: {
+    active: {
+      __name: 'PROMETHEUS_ACTIVE',
+      __format: 'json'
+    },
+    port: 'PROMETHEUS_PORT'
   }
 }
