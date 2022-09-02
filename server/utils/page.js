@@ -60,7 +60,7 @@ async function openInContext(context, target, lang, timezone, cookies, viewport,
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.setCookie.apply(page, cookies)
   if (viewport) await page.setViewport(viewport)
-  timer.step('configurePage')
+  timer.step('configure-page')
   const animationActivated = await waitForPage(page, target, animate, timer)
   return { page, animationActivated }
 }
