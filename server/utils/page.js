@@ -70,7 +70,7 @@ exports.open = async (target, lang, timezone, cookies, viewport, animate, timer)
   if (cookies) {
     debug('use incognito context from pool')
     context = await _contextPool.acquire()
-    timer.step('acquireContext')
+    timer.step('acquire-context')
   } else {
     debug('use default brower context')
   }
