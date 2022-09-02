@@ -15,7 +15,7 @@ exports.createTimer = (name, type) => {
     finish () {
       debug(`${name}, type=${this.type}, ${Object.keys(this.times).map(step => (step + '=' + (Math.round(this.times[step] / 10) / 1000))).join(', ')}`)
       for (const step in this.times) {
-        prometheus.tasks(this.type).labels({ step }).observe(this.times[step] / 1000)
+        prometheus.tasks.labels({ step, type: this.type }).observe(this.times[step] / 1000)
       }
     }
   }

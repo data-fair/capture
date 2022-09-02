@@ -27,17 +27,14 @@ exports.internalError = new client.Counter({
   labelNames: ['errorCode'],
   registers: [localRegister]
 })
-const tasksMetrics = {}
-exports.tasks = (type) => {
-  tasksMetrics[type] = tasksMetrics[type] || new client.Histogram({
-    name: `df_capture_tasks_${type}_seconds`,
-    help: `Number and duration in seconds of capture tasks ${type} steps`,
-    buckets: [0.1, 0.3, 1, 3, 10],
-    labelNames: ['step'],
-    registers: [localRegister]
-  })
-  return tasksMetrics[type]
-}
+exports.tasks = new client.Histogram({
+  name: `df_capture_tasks_seconds`,
+  help: `Number and duration in seconds of capture tasks steps`,
+  buckets: [0.1, 0.3, 1, 3, 10],
+  labelNames: ['step', 'type'],
+  registers: [localRegister]
+})
+
 exports.acquireContextPending = new client.Gauge({
   name: 'df_capture_acquire_context_pending',
   help: 'Number of tasks waiting to acquire a browser context',
