@@ -62,6 +62,30 @@ exports.acquireContextBorrowed = new client.Gauge({
     this.set(pageUtils.contextPool && pageUtils.contextPool.borrowed)
   }
 })
+exports.acquirePublicPagePending = new client.Gauge({
+  name: 'df_capture_acquire_public_page_pending',
+  help: 'Number of tasks waiting to acquire a public browser page',
+  registers: [localRegister],
+  async collect () {
+    this.set(pageUtils.publicPagePool && pageUtils.publicPagePool.pending)
+  }
+})
+exports.acquirePublicPageMax = new client.Gauge({
+  name: 'df_capture_acquire_public_page_max',
+  help: 'Max number of public browser pages that can be borrowed by tasks',
+  registers: [localRegister],
+  async collect () {
+    this.set(pageUtils.publicPagePool && pageUtils.publicPagePool.max)
+  }
+})
+exports.acquirePublicPageBorrowed = new client.Gauge({
+  name: 'df_capture_acquire_public_page_borrowed',
+  help: 'Number of public browser pages currently borrowed by a task',
+  registers: [localRegister],
+  async collect () {
+    this.set(pageUtils.publicPagePool && pageUtils.publicPagePool.borrowed)
+  }
+})
 
 exports.start = async () => {
   server.listen(config.prometheus.port)
