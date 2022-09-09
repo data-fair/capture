@@ -55,7 +55,7 @@ exports.stop = async () => {
 }
 
 async function openInContext(context, target, lang, timezone, cookies, viewport, animate, timer) {
-  const page = (context || config.concurrencyPublic === 0) ? await context.newPage() : await _publicPagePool.acquire()
+  const page = context ? await context.newPage() : await _publicPagePool.acquire()
   timer.step('newPage')
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.setCookie.apply(page, cookies)
@@ -71,7 +71,7 @@ exports.open = async (target, lang, timezone, cookies, viewport, animate, timer)
     throw new Error('forced error trigger')
   }
   let context
-  if (cookies) {
+  if (cookies || config.concurrencyPublic === 0) {
     debug('use incognito context from pool')
     context = await _contextPool.acquire()
     timer.step('acquire-context')
