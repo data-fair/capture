@@ -66,6 +66,10 @@ async function openInContext(context, target, lang, timezone, cookies, viewport,
 }
 
 exports.open = async (target, lang, timezone, cookies, viewport, animate, timer) => {
+  if (target.includes('capture-test-error=true')) {
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    throw new Error('forced error trigger')
+  }
   let context
   if (cookies) {
     debug('use incognito context from pool')
