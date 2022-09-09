@@ -111,7 +111,7 @@ const safeCleanContext = async (page, cookies, context) => {
     if (context && context.isIncognito()) _contextPool.destroy(context)
     return
   }
-  if (context.isIncognito()) {
+  if (context && context.isIncognito()) {
     try {
       let timedout
       await Promise.race([
