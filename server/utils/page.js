@@ -29,7 +29,7 @@ let _closed, _browser, _contextPool, _publicPagePool
 exports.start = async (app) => {
   _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
   _contextPool = exports.contextPool = genericPool.createPool(contextFactory, { min: 1, max: config.concurrency })
-  _publicPagePool = exports.publicPagePool = genericPool.createPool(publicPageFactory, { min: 1, max: config.concurrencyPublic || config.concurrency })
+  _publicPagePool = exports.publicPagePool = genericPool.createPool(publicPageFactory, { min: 1, max: config.concurrencyPublic !== null ? config.concurrencyPublic : config.concurrency })
 
   // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
   _browser.on('disconnected', async () => {
@@ -54,9 +54,7 @@ exports.stop = async () => {
   }
 }
 
-async function openInContext(context, target, lang, timezone, cookies, viewport, animate, timer) {
-  const page = context ? await context.newPage() : await _publicPagePool.acquire()
-  timer.step('newPage')
+async function openInPage(page, target, lang, timezone, cookies, viewport, animate, timer) {
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.setCookie.apply(page, cookies)
   if (viewport) await page.setViewport(viewport)
@@ -70,24 +68,32 @@ exports.open = async (target, lang, timezone, cookies, viewport, animate, timer)
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
   }
-  let context
+  let context, page
   if (cookies || config.concurrencyPublic === 0) {
     debug('use incognito context from pool')
     context = await _contextPool.acquire()
     timer.step('acquire-context')
+    try {
+      page = await context.newPage()
+      timer.step('newPage')
+    } catch (err) {
+      await safeCleanContext(null, cookies, context)
+      throw err
+    }
   } else {
     debug('use default brower context')
+    page = await _publicPagePool.acquire()
   }
   let result
   try {
     await Promise.race([
-      openInContext(context, target, lang, timezone, cookies, viewport, animate, timer).then(r => { result = r }),
+      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer).then(r => { result = r }),
       new Promise(resolve => setTimeout(resolve, config.screenshotTimeout * 2))
     ])
     if (!result) throw new Error(`Failed to open "${target}" in context before timeout`)
     return result
   } catch (err) {
-    await safeCleanContext(result && result.page, cookies, context)
+    await safeCleanContext(page, cookies, context)
     throw err
   }
 }
@@ -97,7 +103,7 @@ exports.close = (page, cookies) => {
   safeCleanContext(page, cookies, page.browserContext())
 }
 
-const cleanIncognitoContext = async (page, cookies, context) => {
+const cleanIncognitoContext = async (page, cookies) => {
   // always empty cookies to prevent inheriting them in next use of the context
   // to be extra sure we delete the cookies that were explicitly passed to page, and check for other cookies that might have been created
   await page.deleteCookie.apply(page, cookies)
@@ -115,7 +121,7 @@ const safeCleanContext = async (page, cookies, context) => {
     try {
       let timedout
       await Promise.race([
-        await cleanIncognitoContext(page, cookies, context),
+        await cleanIncognitoContext(page, cookies),
         new Promise(resolve => setTimeout(() => { resolve(); timedout = true }, 2000))
       ])
       if (timedout) throw new Error('timed out while cleaning page context')

@@ -95,6 +95,28 @@ describe('capture', () => {
     console.log(`${nb} prints in ${t1 - t0}ms`)
   })
 
+  it('make concurrent prints in public contexts', async () => {
+    const t0 = new Date().getTime()
+    const nb = 20
+    const promises = []
+    for (let i = 0; i < nb; i++) {
+      promises.push(
+        ax.get('print', { params: { target, footer: `>footer ${i}<` }, responseType: 'arraybuffer' })
+      )
+    }
+    const responses = await Promise.all(promises)
+    for (let i = 0; i < nb; i++) {
+      const res = responses[i]
+      assert.equal(res.status, 200)
+      assert.equal(res.headers['content-type'], 'application/pdf')
+      let content = await pdfParse(res.data)
+      assert.ok(content.text.includes('Test page 1'))
+      assert.ok(content.text.includes(`>footer ${i}<`))
+    }
+    const t1 = new Date().getTime()
+    console.log(`${nb} prints in ${t1 - t0}ms`)
+  })
+
   it('make prints of a page that is never idle', async () => {
     let res = await ax.get('print', { params: { target: 'http://localhost:5607/test/resources/test-timeout.html' }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
