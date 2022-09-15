@@ -1,5 +1,6 @@
 const assert = require('assert').strict
 const pdfParse = require('pdf-parse')
+const jimp = require('jimp')
 const app = require('../server/app')
 
 const ax = require('axios').create({
@@ -17,15 +18,28 @@ after('stop app', async () => {
 
 describe('capture', () => {
   it('make a few screenshot of a page', async () => {
-    let res = await ax.get('screenshot', { params: { target } })
+    let res = await ax.get('screenshot', { params: { target }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/png')
     const size1 = Number(res.headers['content-length'])
+    let img = await jimp.read(res.data)
+    assert.equal(img.bitmap.width, 800)
+    assert.equal(img.bitmap.height, 450)
 
-    res = await ax.get('screenshot', { params: { target, width: '1600' } })
+    res = await ax.get('screenshot', { params: { target, width: '1600' }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
     const size2 = Number(res.headers['content-length'])
     assert.ok(size2 > size1)
+    img = await jimp.read(res.data)
+    assert.equal(img.bitmap.width, 1600)
+    assert.equal(img.bitmap.height, 450)
+
+    res = await ax.get('screenshot', { params: { target, width: '1600', height: 'auto' }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    img = await jimp.read(res.data)
+    assert.equal(img.bitmap.width, 1600)
+    assert.ok(img.bitmap.height > 880)
+    assert.ok(img.bitmap.height < 890)
 
     res = await ax.get('screenshot', { params: { target, filename: 'screenshot.png' } })
     assert.equal(res.status, 200)

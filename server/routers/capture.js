@@ -53,12 +53,13 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
   let width, height
   try {
     width = req.query.width ? parseInt(req.query.width) : 800
-    height = req.query.height ? parseInt(req.query.height) : 450
+    height = req.query.height && req.query.height !== 'auto' ? parseInt(req.query.height) : 450
   } catch (err) {
     return res.status(400).send(err.message)
   }
+  if (req.query.height === 'auto') height = Math.round(width / 10)
   if (width > 3000) return res.status(400).send('width too large')
-  if (height > 3000) return res.status(400).send('width too large')
+  if (height > 3000) return res.status(400).send('height too large')
   let type = req.query.type
   if (!type && req.query.filename && req.query.filename.endsWith('.gif')) type = 'gif'
   if (!type && req.query.filename && (req.query.filename.endsWith('.jpeg') || req.query.filename.endsWith('.jpg'))) type = 'jpg'
@@ -80,7 +81,7 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
     } else {
       let buffer
       await Promise.race([
-        page.screenshot().then(b => { buffer = b }),
+        page.screenshot({ fullPage: req.query.height === 'auto' }).then(b => { buffer = b }),
         new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
       ])
       if (buffer) {
