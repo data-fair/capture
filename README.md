@@ -19,7 +19,7 @@ Then start the server:
 
 Or build and run the docker image:
 
-    docker build -t capture . && docker run --rm -it -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e PORT=5607 --name capture capture
+    docker build -t capture . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e PORT=5607 --name capture capture
 
 Check the service with these examples:
 
@@ -34,3 +34,9 @@ Check the service with these examples:
   - [fallback to standard screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test1.html)
   - [screenshot converted to jpg](http://localhost:5607/api/v1/screenshot?key=capture&type=jpg&target=http://localhost:5607/test/resources/test-anim.html)
   - [screenshot with custom jpg filename](http://localhost:5607/api/v1/screenshot?key=capture&filename=test.jpg&target=http://localhost:5607/test/resources/test-anim.html)
+
+## Security
+
+See this article https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image
+
+We recommand using [./seccomp.json](./seccomp.json).

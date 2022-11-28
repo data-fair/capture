@@ -30,7 +30,7 @@ async function auth(req, res, next) {
     return res.status(400).send('Failed to parse url ' + err.message)
   }
   if (!sameHost && config.onlySameHost) {
-    debug(`${target} is NOT on same host as capture service, do NOT transmit cookies`)
+    debug(`${target} is NOT on same host as capture service, reject`)
     return res.status(400).send('Only same host targets are accepted')
   }
 

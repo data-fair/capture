@@ -33,5 +33,11 @@ module.exports = {
       __format: 'json'
     },
     port: 'PROMETHEUS_PORT'
+  },
+  puppeteerLaunchOptions: {
+    args: {
+      __name: 'PUPPETEER_ARGS',
+      __format: 'json'
+    }
   }
 }
