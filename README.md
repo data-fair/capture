@@ -37,6 +37,6 @@ Check the service with these examples:
 
 ## Security
 
-See this article https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image
+Consider reading this article https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image
 
-We recommand using [./seccomp.json](./seccomp.json).
+We recommend using [./seccomp.json](./seccomp.json). If you trust all pages opened by capture you can use PUPPETEER_ARGS=["--no-sadnbox"] environment variable.
