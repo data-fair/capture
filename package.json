@@ -1,6 +1,6 @@
 {
   "name": "capture",
-  "version": "2.6.0",
+  "version": "3.0.0",
   "description": "A simple service for capturing rendered Web pages using puppeteer.",
   "main": "server",
   "scripts": {
