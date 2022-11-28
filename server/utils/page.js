@@ -1,6 +1,7 @@
 const config = require('config')
 const puppeteer = require('puppeteer')
 const genericPool = require('generic-pool')
+const createError = require('http-errors')
 const debug = require('debug')('capture')
 
 const contextFactory = {
@@ -60,6 +61,16 @@ async function openInPage(page, target, lang, timezone, cookies, viewport, anima
   if (viewport) await page.setViewport(viewport)
   timer.step('configure-page')
   const animationActivated = await waitForPage(page, target, animate, timer)
+
+  for (const frame of page.frames()) {
+    const frameUrl = frame.url()
+    const sameHost = new URL(frameUrl).host === new URL(config.publicUrl).host
+    if (!sameHost && config.onlySameHost) {
+      debug(`${frameUrl} from iframe in ${target} is NOT on same host as capture service, reject`)
+      throw createError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)
+    }
+  }
+
   return { page, animationActivated }
 }
 

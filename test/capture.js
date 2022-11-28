@@ -2,6 +2,7 @@ const assert = require('assert').strict
 const pdfParse = require('pdf-parse')
 const jimp = require('jimp')
 const app = require('../server/app')
+const config = require('config')
 
 const ax = require('axios').create({
   baseURL: 'http://localhost:5607/api/v1/'
@@ -162,5 +163,14 @@ describe('capture', () => {
     let res = await ax.get('screenshot', { params: { target, type: 'jpg' } })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/jpeg')
+  })
+
+  it('apply ONLY_SAVE_HOST policy to iframes also', async () => {
+    config.onlySameHost = true
+    await assert.rejects(
+      ax.get('screenshot', { params: { target: 'http://localhost:5607/test/resources/test-iframe.html', type: 'pdf' } }),
+      err => err.response.status === 400
+    )
+    config.onlySameHost = false
   })
 })

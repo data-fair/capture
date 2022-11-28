@@ -36,6 +36,7 @@
     "generic-pool": "^3.7.1",
     "get-pixels": "^3.3.2",
     "gif-encoder": "^0.7.2",
+    "http-errors": "^2.0.0",
     "http-proxy-middleware": "^0.20.0",
     "imagemin-gifsicle": "^7.0.0",
     "jimp": "^0.16.1",
