@@ -10,6 +10,10 @@ module.exports = {
     __name: 'ONLY_SAME_HOST',
     __format: 'json'
   },
+  trustHeaderHost: {
+    __name: 'TRUST_HEADER_HOST',
+    __format: 'json'
+  },
   screenshotTimeout: {
     __name: 'SCREENSHOT_TIMEOUT',
     __format: 'json'

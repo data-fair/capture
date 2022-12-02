@@ -4,6 +4,7 @@ module.exports = {
   directoryUrl: null,
   sessionDomain: null,
   onlySameHost: false,
+  trustHeaderHost: false, // when applying onlySameHost policy we will trust req.headers.host instead of relying on config.publicUrl
   screenshotTimeout: 20000,
   concurrency: 5,
   concurrencyPublic: null,

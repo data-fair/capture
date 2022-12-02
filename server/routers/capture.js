@@ -25,7 +25,7 @@ async function auth(req, res, next) {
   // transmit cookies from incoming query if we target and the current service are on same host
   let sameHost
   try {
-    sameHost = new URL(target).host === new URL(config.publicUrl).host
+    sameHost = new URL(target).host === (config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host)
   } catch (err) {
     return res.status(400).send('Failed to parse url ' + err.message)
   }
@@ -66,7 +66,16 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
   if (!type) type = 'png'
   timer.type = type
 
-  const { page, animationActivated } = await pageUtils.open(target, req.query.lang, req.query.timezone, req.cookies, { width, height }, type === 'gif', timer)
+  const { page, animationActivated } = await pageUtils.open(
+    target,
+    req.query.lang,
+    req.query.timezone,
+    req.cookies,
+    { width, height },
+    type === 'gif',
+    (config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host),
+    timer
+  )
 
   debug(`page is opened ${target}`)
   try {
@@ -130,7 +139,16 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
   const top = req.query.top || '1.5cm'
   const bottom = req.query.bottom || '1.5cm'
 
-  const { page } = await pageUtils.open(target, req.query.lang, req.query.timezone, req.cookies, null, false, timer)
+  const { page } = await pageUtils.open(
+    target,
+    req.query.lang,
+    req.query.timezone,
+    req.cookies,
+    null,
+    false,
+    (config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host),
+    timer
+  )
   debug(`page is opened ${target}`)
   try {
     const pdfOptions = { landscape, pageRanges, format, margin: { left, right, top, bottom }, printBackground: true }

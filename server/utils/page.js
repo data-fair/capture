@@ -55,7 +55,7 @@ exports.stop = async () => {
   }
 }
 
-async function openInPage(page, target, lang, timezone, cookies, viewport, animate, timer) {
+async function openInPage(page, target, lang, timezone, cookies, viewport, animate, captureHost, timer) {
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.setCookie.apply(page, cookies)
   if (viewport) await page.setViewport(viewport)
@@ -64,7 +64,7 @@ async function openInPage(page, target, lang, timezone, cookies, viewport, anima
 
   for (const frame of page.frames()) {
     const frameUrl = frame.url()
-    const sameHost = new URL(frameUrl).host === new URL(config.publicUrl).host
+    const sameHost = new URL(frameUrl).host === captureHost
     if (!sameHost && config.onlySameHost) {
       debug(`${frameUrl} from iframe in ${target} is NOT on same host as capture service, reject`)
       throw createError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)
@@ -74,7 +74,7 @@ async function openInPage(page, target, lang, timezone, cookies, viewport, anima
   return { page, animationActivated }
 }
 
-exports.open = async (target, lang, timezone, cookies, viewport, animate, timer) => {
+exports.open = async (target, lang, timezone, cookies, viewport, animate, captureHost, timer) => {
   if (target.includes('capture-test-error=true')) {
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
@@ -98,7 +98,7 @@ exports.open = async (target, lang, timezone, cookies, viewport, animate, timer)
   let result
   try {
     await Promise.race([
-      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer).then(r => { result = r }),
+      openInPage(page, target, lang, timezone, cookies, viewport, animate, captureHost, timer).then(r => { result = r }),
       new Promise(resolve => setTimeout(resolve, config.screenshotTimeout * 2))
     ])
     if (!result) throw new Error(`Failed to open "${target}" in context before timeout`)
