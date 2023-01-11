@@ -126,18 +126,12 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
 router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
   const target = req.query.target
   debug(`print page for target url ${target}`)
-  const timer = createTimer(req.originalUrl, 'pdf')
 
   // read query params
-  const landscape = req.query.landscape === 'true'
-  const showFooter = !!req.query.footer
-  const footer = req.query.footer === 'true' ? '' : req.query.footer
-  const pageRanges = req.query.pageRanges || ''
-  const format = req.query.format || 'A4'
-  const left = req.query.left || '1.5cm'
-  const right = req.query.right || '1.5cm'
-  const top = req.query.top || '1.5cm'
-  const bottom = req.query.bottom || '1.5cm'
+  const type = req.query.type || 'pdf'
+  if (!['html', 'pdf'].includes(type)) return res.status(400).send('supported types are "pdf" and "html"')
+
+  const timer = createTimer(req.originalUrl, type)
 
   const { page } = await pageUtils.open(
     target,
@@ -151,23 +145,45 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
   )
   debug(`page is opened ${target}`)
   try {
-    const pdfOptions = { landscape, pageRanges, format, margin: { left, right, top, bottom }, printBackground: true }
-    if (showFooter) {
-      pdfOptions.displayHeaderFooter = true
-      pdfOptions.headerTemplate = ' '
-      pdfOptions.footerTemplate = headerFooter.footer(footer)
+    if (type === 'pdf') {
+      const landscape = req.query.landscape === 'true'
+      const showFooter = !!req.query.footer
+      const footer = req.query.footer === 'true' ? '' : req.query.footer
+      const pageRanges = req.query.pageRanges || ''
+      const format = req.query.format || 'A4'
+      const left = req.query.left || '1.5cm'
+      const right = req.query.right || '1.5cm'
+      const top = req.query.top || '1.5cm'
+      const bottom = req.query.bottom || '1.5cm'
+      const pdfOptions = { landscape, pageRanges, format, margin: { left, right, top, bottom }, printBackground: true }
+      if (showFooter) {
+        pdfOptions.displayHeaderFooter = true
+        pdfOptions.headerTemplate = ' '
+        pdfOptions.footerTemplate = headerFooter.footer(footer)
+      }
+      let buffer
+      await Promise.race([
+        page.pdf(pdfOptions).then(b => { buffer = b }),
+        new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
+      ])
+      if (!buffer) throw new Error(`Failed to make PDF print of page "${target}" before timeout`)
+      timer.step('print-pdf')
+      debug(`PDF print is taken ${target}`)
+      res.type('pdf')
+      if (req.query.filename) res.attachment(req.query.filename)
+      res.send(buffer)
+    } else if (type === 'html') {
+      let buffer
+      await Promise.race([
+        page.content().then(b => { buffer = b }),
+        new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
+      ])
+      if (!buffer) throw new Error(`Failed to make HTML print of page "${target}" before timeout`)
+      timer.step('print-html')
+      debug(`HTML print is taken ${target}`)
+      if (req.query.filename) res.attachment(req.query.filename)
+      res.send(buffer.toString())
     }
-    let buffer
-    await Promise.race([
-      page.pdf(pdfOptions).then(b => { buffer = b }),
-      new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
-    ])
-    if (!buffer) throw new Error(`Failed to make print of page "${target}" before timeout`)
-    timer.step('print-pdf')
-    debug(`print is taken ${target}`)
-    res.type('pdf')
-    if (req.query.filename) res.attachment(req.query.filename)
-    res.send(buffer)
   } finally {
     await pageUtils.close(page, req.cookies)
     timer.step('close-page')
