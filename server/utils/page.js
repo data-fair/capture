@@ -66,7 +66,7 @@ async function openInPage(page, target, lang, timezone, cookies, viewport, anima
     const frameUrl = frame.url()
     const sameHost = new URL(frameUrl).host === captureHost
     if (!sameHost && config.onlySameHost) {
-      debug(`${frameUrl} from iframe in ${target} is NOT on same host as capture service, reject`)
+      debug(`${frameUrl} from iframe in ${target} is NOT on same host as capture service (${captureHost}), reject`)
       throw createError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)
     }
   }

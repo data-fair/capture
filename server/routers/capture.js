@@ -24,13 +24,14 @@ async function auth(req, res, next) {
 
   // transmit cookies from incoming query if we target and the current service are on same host
   let sameHost
+  const captureHost = config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host
   try {
-    sameHost = new URL(target).host === (config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host)
+    sameHost = new URL(target).host === captureHost
   } catch (err) {
     return res.status(400).send('Failed to parse url ' + err.message)
   }
   if (!sameHost && config.onlySameHost) {
-    debug(`${target} is NOT on same host as capture service, reject`)
+    debug(`${target} is NOT on same host as capture service (${captureHost}), reject`)
     return res.status(400).send('Only same host targets are accepted')
   }
 
