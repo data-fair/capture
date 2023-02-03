@@ -47,6 +47,13 @@ app.use((err, req, res, next) => {
 
 // Run app and return it in a promise
 const server = http.createServer(app)
+
+// cf https://connectreport.com/blog/tuning-http-keep-alive-in-node-js/
+// timeout is often 60s on the reverse proxy, better to a have a longer one here
+// so that interruption is managed downstream instead of here
+server.keepAliveTimeout = (60 * 1000) + 1000
+server.headersTimeout = (60 * 1000) + 2000
+
 exports.run = async () => {
   await pageUtils.start()
   server.listen(config.port)
