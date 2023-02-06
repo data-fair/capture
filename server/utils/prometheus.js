@@ -8,6 +8,7 @@ const config = require('config')
 const express = require('express')
 const client = require('prom-client')
 const eventToPromise = require('event-to-promise')
+const { createHttpTerminator } = require('http-terminator')
 const asyncWrap = require('./async-wrap')
 const pageUtils = require('./page')
 const localRegister = new client.Registry()
@@ -15,6 +16,8 @@ const localRegister = new client.Registry()
 // metrics server
 const app = express()
 const server = require('http').createServer(app)
+const httpTerminator = createHttpTerminator({ server })
+
 app.get('/metrics', asyncWrap(async (req, res) => {
   res.set('Content-Type', localRegister.contentType)
   res.send(await localRegister.metrics())
@@ -91,6 +94,5 @@ exports.start = async () => {
 }
 
 exports.stop = async () => {
-  server.close()
-  await eventToPromise(server, 'close')
+  await httpTerminator.terminate()
 }
