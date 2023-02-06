@@ -10,14 +10,14 @@ const ax = require('axios').create({
 
 const target = 'http://localhost:5607/test/resources/test1.html'
 
-before('start app', async function () {
-  await app.run()
-})
-after('stop app', async () => {
-  await app.stop()
-})
-
 describe('capture', () => {
+  before('start app', async function () {
+    await app.run()
+  })
+  after('stop app', async () => {
+    await app.stop()
+  })
+
   it('make a few screenshot of a page', async () => {
     let res = await ax.get('screenshot', { params: { target }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)

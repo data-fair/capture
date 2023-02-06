@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser')
 const http = require('http')
 const eventToPromise = require('event-to-promise')
 const proxy = require('http-proxy-middleware')
+const { createHttpTerminator } = require('http-terminator')
 const capture = require('./routers/capture')
 const pageUtils = require('./utils/page')
 const prometheus = require('./utils/prometheus')
@@ -47,6 +48,7 @@ app.use((err, req, res, next) => {
 
 // Run app and return it in a promise
 const server = http.createServer(app)
+const httpTerminator = createHttpTerminator({ server })
 
 // cf https://connectreport.com/blog/tuning-http-keep-alive-in-node-js/
 // timeout is often 60s on the reverse proxy, better to a have a longer one here
@@ -65,7 +67,6 @@ exports.run = async () => {
 }
 
 exports.stop = async() => {
-  server.close()
-  await eventToPromise(server, 'close')
-  await pageUtils.start()
+  await httpTerminator.terminate()
+  await pageUtils.stop()
 }
