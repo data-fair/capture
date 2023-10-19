@@ -42,7 +42,7 @@ ADD package-lock.json .
 # use clean-modules on the same line as npm ci to be lighter in the cache
 RUN npm i -g clean-modules@2.0.6
 RUN npm ci --omit=dev &&\
-    ./node_modules/.bin/clean-modules --yes --exclude exceljs/lib/doc/ --exclude mocha/lib/test.js --exclude "**/*.mustache"
+    clean-modules --yes --exclude exceljs/lib/doc/ --exclude mocha/lib/test.js --exclude "**/*.mustache"
 
 ##################################
 # Stage: main nodejs service stage
