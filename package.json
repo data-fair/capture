@@ -13,7 +13,7 @@
     "lint": "eslint --ext js,vue --ignore-path .gitignore .",
     "lint-fix": "eslint --ext js,vue --ignore-path .gitignore --fix .",
     "quality": "npm run test-deps && npm run lint && npm run test && npm audit --omit=dev --audit-level=critical",
-    "prepare": "husky install"
+    "prepare": "if [ \"$npm_config_omit\" = \"dev\" ]; then echo \"Skip husky installation\"; else husky install; fi"
   },
   "engines": {
     "node": "v20"
