@@ -3,7 +3,6 @@ const express = require('express')
 const cookieParser = require('cookie-parser')
 const http = require('http')
 const eventToPromise = require('event-to-promise')
-const proxy = require('http-proxy-middleware')
 const { createHttpTerminator } = require('http-terminator')
 const capture = require('./routers/capture')
 const pageUtils = require('./utils/page')
@@ -14,10 +13,9 @@ const app = express()
 if (!config.directoryUrl) {
   console.error('WARNING: It is recommended to define directoryUrl parameter')
 } else {
-  const session = require('@koumoul/sd-express')({
+  const session = require('@data-fair/sd-express')({
     directoryUrl: config.directoryUrl,
-    publicUrl: config.publicUrl,
-    cookieDomain: config.sessionDomain
+    privateDirectoryUrl: config.privateDirectoryUrl
   })
   app.set('session', session)
 }
@@ -29,7 +27,7 @@ if (process.env.NODE_ENV === 'development') {
   app.use(require('cors')())
 
   // Create a mono-domain environment with other services in dev
-  app.use('/simple-directory', proxy({ target: 'http://localhost:8080', pathRewrite: { '^/simple-directory': '' } }))
+  app.use('/simple-directory', require('http-proxy-middleware').createProxyMiddleware({ target: 'http://localhost:8080', pathRewrite: { '^/simple-directory': '' } }))
 }
 
 app.use('/api/v1', capture.router)

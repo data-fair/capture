@@ -3,7 +3,7 @@
 ############################################################################################################
 # Stage: prepare a base image with all native utils pre-installed, used both by builder and definitive image
 
-FROM node:20.8.1-slim AS nativedeps
+FROM node:16-slim AS nativedeps
 
 # See https://crbug.com/795759
 RUN apt-get update
