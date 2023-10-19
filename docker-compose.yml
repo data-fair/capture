@@ -1,12 +1,17 @@
 version: '3'
 services:
   mongo:
+    profiles:
+      - dev
     image: mongo:4.0
     ports:
       - 27017:27017
 
   sd:
-    image: koumoul/simple-directory:1
+    profiles:
+      - dev
+      - test
+    image: ghcr.io/data-fair/simple-directory:7
     network_mode: host
     environment:
       - DEBUG=webhooks

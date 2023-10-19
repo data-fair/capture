@@ -1,21 +1,18 @@
-name: Build CI
+name: Build
 
 on:
-  push:
-    branches: [ '*' ]
-    tags: [ 'v*.*.*' ]
+  workflow_call:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout git repository
-      uses: actions/checkout@v3
-    
+      uses: actions/checkout@v4
 
     - name: Prepare docker image tags
       id: docker_meta
-      uses: docker/metadata-action@v4
+      uses: docker/metadata-action@v5
       with:
         images: ghcr.io/${{ github.repository }} 
         tags: |
@@ -26,10 +23,10 @@ jobs:
           type=semver,pattern={{major}}
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v3
 
     - name: Login to Github container registry
-      uses: docker/login-action@v2
+      uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
@@ -42,21 +39,18 @@ jobs:
 
     - name: Build and push docker images
       id: docker_build
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v5
       with:
         context: .
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.docker_meta.outputs.tags }}
+        platforms: linux/amd64,linux/arm64
         labels: ${{ steps.docker_meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
     
+    - name: Stop test dependencies
+      run: docker-compose stop
+
     - name: Image digest
       run: echo ${{ steps.docker_build.outputs.digest }}
-
-    - name: Send Keel notification to staging-koumoul.com
-      run: |
-        curl -s --fail --show-error -X POST https://keel.admin.staging-koumoul.com/v1/webhooks/native -u ${{ secrets.KEEL_STAGING_USER }}:${{ secrets.KEEL_STAGING_PASSWORD }} -d '{"name": "ghcr.io/${{ github.repository }}", "tag": "${{ steps.docker_meta.outputs.version }}"}'
-    - name: Send Keel notification to koumoul.com
-      run: |
-        curl -s --fail --show-error -X POST https://keel.admin.koumoul.com/v1/webhooks/native -u ${{ secrets.KEEL_PROD_USER }}:${{ secrets.KEEL_PROD_PASSWORD }} -d '{"name": "ghcr.io/${{ github.repository }}", "tag": "${{ steps.docker_meta.outputs.version }}"}'

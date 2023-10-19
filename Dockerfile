@@ -3,7 +3,7 @@
 ############################################################################################################
 # Stage: prepare a base image with all native utils pre-installed, used both by builder and definitive image
 
-FROM node:16.17.0-slim AS nativedeps
+FROM node:20.8.1-slim AS nativedeps
 
 # See https://crbug.com/795759
 RUN apt-get update
@@ -39,25 +39,10 @@ ADD package-lock.json .
 # deps for gifsicle install
 # RUN apt-get install -y dh-autoreconf
 
-# TODO use clean-modules on the same line as npm ci to be lighter in the cache
-RUN npm ci
-RUN ./node_modules/.bin/clean-modules --yes --exclude exceljs/lib/doc/ --exclude mocha/lib/test.js --exclude "**/*.mustache"
-
-# Adding server files
-ADD server server
-ADD config config
-ADD contract contract
-
-# Check quality
-ADD .gitignore .gitignore
-ADD .eslintrc.js .eslintrc.js
-RUN npm run lint
-ADD test test
-RUN npm run test
-
-# Cleanup /webapp/node_modules so it can be copied by next stage
-RUN npm prune --production && \
-    rm -rf node_modules/.cache
+# use clean-modules on the same line as npm ci to be lighter in the cache
+RUN npm i -g clean-modules@2.0.6
+RUN npm ci --omit=dev &&\
+    ./node_modules/.bin/clean-modules --yes --exclude exceljs/lib/doc/ --exclude mocha/lib/test.js --exclude "**/*.mustache"
 
 ##################################
 # Stage: main nodejs service stage

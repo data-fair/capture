@@ -4,11 +4,19 @@
   "description": "A simple service for capturing rendered Web pages using puppeteer.",
   "main": "server",
   "scripts": {
+    "test-deps": "docker compose --profile test up -d --wait --quiet-pull",
     "test": "NODE_ENV=test mocha --exit --bail --timeout 20000 test/",
     "start": "node server",
+    "dev-deps": "docker compose --profile dev up -d --wait --quiet-pull",
+    "stop-dev-deps": "docker compose --profile dev stop",
     "dev": "NODE_ENV=development DEBUG=capture nodemon server",
     "lint": "eslint --ext js,vue --ignore-path .gitignore .",
-    "lint-fix": "eslint --ext js,vue --ignore-path .gitignore --fix ."
+    "lint-fix": "eslint --ext js,vue --ignore-path .gitignore --fix .",
+    "quality": "npm run test-deps && npm run lint && npm run test && npm audit --omit=dev --audit-level=critical",
+    "prepare": "husky install"
+  },
+  "engines": {
+    "node": "v20"
   },
   "repository": {
     "type": "git",
@@ -47,7 +55,8 @@
     "tmp-promise": "^3.0.2"
   },
   "devDependencies": {
-    "clean-modules": "^2.0.6",
+    "@commitlint/cli": "^17.8.0",
+    "@commitlint/config-conventional": "^17.8.0",
     "cors": "^2.8.5",
     "eslint": "^5.7.0",
     "eslint-config-standard": "^12.0.0",
@@ -57,6 +66,7 @@
     "eslint-plugin-node": "^7.0.1",
     "eslint-plugin-promise": "^4.0.1",
     "eslint-plugin-standard": "^4.0.0",
+    "husky": "^8.0.3",
     "mocha": "^8.0.1",
     "pdf-parse": "^1.1.1"
   }
