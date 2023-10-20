@@ -15,7 +15,7 @@ module.exports = {
   },
   maxAnimationFrames: 1800, // 2 minutes at 15fps
   puppeteerLaunchOptions: {
-    executablePath: 'google-chrome-unstable',
+    executablePath: 'chromium',
     args: []
   },
   prometheus: {

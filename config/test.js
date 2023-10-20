@@ -1,7 +1,7 @@
 module.exports = {
   screenshotTimeout: 2000,
   puppeteerLaunchOptions: {
-    executablePath: 'google-chrome',
+    executablePath: 'chromium',
     args: ['--no-sandbox']
   },
   prometheus: {

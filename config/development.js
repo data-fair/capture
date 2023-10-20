@@ -3,9 +3,5 @@ module.exports = {
   concurrency: 2,
   secretKeys: {
     capture: 'capture'
-  },
-  puppeteerLaunchOptions: {
-    executablePath: 'google-chrome-stable',
-    args: []
   }
 }

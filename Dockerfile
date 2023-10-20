@@ -3,7 +3,7 @@
 ############################################################################################################
 # Stage: prepare a base image with all native utils pre-installed, used both by builder and definitive image
 
-FROM node:16-slim AS nativedeps
+FROM node:20.8.1-slim AS nativedeps
 
 ARG TARGETARCH
 RUN echo "Building for architecture $TARGETARCH"
@@ -12,13 +12,8 @@ RUN echo "Building for architecture $TARGETARCH"
 RUN apt-get update
 RUN apt-get install -y libgconf-2-4
 
-# Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
-RUN apt-get install -y wget --no-install-recommends
-RUN apt-get install -y gnupg apt-transport-https ca-certificates
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
-RUN sh -c 'echo "deb [arch=$TARGETARCH] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-RUN apt-get update
-RUN apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf --no-install-recommends
+# Install chromium and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
+RUN apt-get install -y chromium chromium-driver fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf --no-install-recommends
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
 ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_$TARGETARCH /usr/local/bin/dumb-init

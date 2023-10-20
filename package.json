@@ -16,7 +16,7 @@
     "prepare": "if [ \"$npm_config_omit\" = \"dev\" ]; then echo \"Skip husky installation\"; else husky install; fi"
   },
   "engines": {
-    "node": "v16"
+    "node": "v20"
   },
   "repository": {
     "type": "git",
