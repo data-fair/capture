@@ -5,6 +5,9 @@
 
 FROM node:16-slim AS nativedeps
 
+ARG TARGETARCH
+RUN echo "Building for architecture $TARGETARCH"
+
 # See https://crbug.com/795759
 RUN apt-get update
 RUN apt-get install -y libgconf-2-4
@@ -13,12 +16,12 @@ RUN apt-get install -y libgconf-2-4
 RUN apt-get install -y wget --no-install-recommends
 RUN apt-get install -y gnupg apt-transport-https ca-certificates
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
-RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+RUN sh -c 'echo "deb [arch=$TARGETARCH] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
 RUN apt-get update
 RUN apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf --no-install-recommends
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
-ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 /usr/local/bin/dumb-init
+ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_$TARGETARCH /usr/local/bin/dumb-init
 RUN chmod +x /usr/local/bin/dumb-init
 
 # cleanup

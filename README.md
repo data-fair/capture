@@ -19,7 +19,7 @@ Then start the server:
 
 Or build and run the docker image:
 
-    docker build -t capture . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e PORT=5607 --name capture capture
+    docker buildx build -t capture --load . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e PORT=5607 --name capture capture
 
 Check the service with these examples:
 
