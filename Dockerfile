@@ -3,7 +3,7 @@
 ############################################################################################################
 # Stage: prepare a base image with all native utils pre-installed, used both by builder and definitive image
 
-FROM node:20.8.1-slim AS nativedeps
+FROM node:20.11.0-slim AS nativedeps
 
 ARG TARGETARCH
 RUN echo "Building for architecture $TARGETARCH"

@@ -13,7 +13,7 @@ const router = exports.router = express.Router()
 
 async function auth(req, res, next) {
   if (!req.app.get('session')) {
-    console.error('WARNING: It is recommended to define directoryUrl parameter')
+    // console.error('WARNING: It is recommended to define directoryUrl parameter')
   } else {
     await req.app.get('session').auth(req, res, () => {})
     if (!req.user && req.query.key !== config.secretKeys.capture) return res.status(401).send()
