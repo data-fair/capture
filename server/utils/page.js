@@ -18,7 +18,7 @@ const publicPageFactory = {
   async create() {
     // create pages in incognito contexts so that cookies are not shared
     // each context is used sequentially only because of cookies or other states conflicts
-    const page = _browser.defaultBrowserContext().newPage()
+    const page = await _browser.defaultBrowserContext().newPage()
     debugPage(page)
     return page
   },
