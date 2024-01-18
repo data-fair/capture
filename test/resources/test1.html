@@ -45,7 +45,7 @@
     <script>
 
       setTimeout(() => {
-        console.log('triggering capture', !!window.triggerCapture)
+        // console.log('triggering capture', !!window.triggerCapture)
         if (window.triggerCapture) {
           window.triggerCapture()
         }
@@ -56,6 +56,8 @@
       const d = moment()
       document.getElementById('date').innerHTML = d.format('lll')
       document.getElementById('cookie').innerHTML = document.cookie
+
+      console.error('log error', new Error('test error'))
     </script>
   </body>
 </html>

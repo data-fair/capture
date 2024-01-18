@@ -28,8 +28,17 @@ const publicPageFactory = {
 }
 
 const debugPage = (page) => {
-  page.on('console', msg => {
-    debug(`[${page.url()}] console.${msg.type()}: ${msg.text()}`)
+  page.on('console', async msg => {
+    try {
+      const args = []
+      for (const arg of msg.args()) {
+        const argStr = (await (await arg.getProperty('message')).jsonValue()) || await arg.jsonValue()
+        args.push(argStr)
+      }
+      if (args.length) debug(`[${page.url()}] console.${msg.type()}: `, ...args)
+    } catch (err) {
+      console.error(`[${page.url()}] failed to parse console message: ${msg.text()}`, err)
+    }
   })
   page.on('pageerror', err => {
     debug(`[${page.url()}] page error: ${err}`)
