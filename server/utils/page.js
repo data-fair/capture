@@ -18,11 +18,28 @@ const publicPageFactory = {
   async create() {
     // create pages in incognito contexts so that cookies are not shared
     // each context is used sequentially only because of cookies or other states conflicts
-    return _browser.defaultBrowserContext().newPage()
+    const page = _browser.defaultBrowserContext().newPage()
+    debugPage(page)
+    return page
   },
   async destroy(page) {
     await page.close()
   }
+}
+
+const debugPage = (page) => {
+  page.on('console', msg => {
+    debug(`[${page.url()}] console.${msg.type()}: ${msg.text()}`)
+  })
+  page.on('pageerror', err => {
+    debug(`[${page.url()}] page error: ${err}`)
+  })
+  page.on('error', err => {
+    debug(`[${page.url()}] error: ${err}`)
+  })
+  page.on('requestfailed', request => {
+    debug(`[${page.url()}] requestfailed: ${request.failure().errorText} ${request.url()}`)
+  })
 }
 
 // start / stop a single puppeteer browser
@@ -81,18 +98,19 @@ exports.open = async (target, lang, timezone, cookies, viewport, animate, captur
   }
   let context, page
   if (cookies || config.concurrencyPublic === 0) {
-    debug('use incognito context from pool')
+    debug(`[${target}] use incognito context from pool`)
     context = await _contextPool.acquire()
     timer.step('acquire-context')
     try {
       page = await context.newPage()
+      debugPage(page)
       timer.step('newPage')
     } catch (err) {
       await safeCleanContext(null, cookies, context)
       throw err
     }
   } else {
-    debug('use default brower context')
+    debug(`[${target}] use default brower context`)
     page = await _publicPagePool.acquire()
   }
   let result
@@ -168,16 +186,16 @@ const waitForPage = async (page, target, animate, timer) => {
 
     if (captureTriggered) {
       timer.step('wait1-capture-triggered')
-      debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
+      debug(`[${target}] capture was expicitly triggered by window.triggerCapture`)
     } else {
       timer.step('wait1-network-idle')
-      debug(`network was idle during 500ms for ${target}`)
+      debug(`[${target}] network was idle during 500ms`)
     }
   } catch (err) {
     if (err.name !== 'TimeoutError') throw err
     else {
       timer.step('wait1-timeout')
-      debug(`timeout of ${config.screenshotTimeout} was reached for ${target}`)
+      debug(`[${target}] timeout of ${config.screenshotTimeout} was reached`)
       timeoutReached = true
     }
   }
@@ -204,10 +222,10 @@ const waitForPage = async (page, target, animate, timer) => {
       ])
       if (captureTriggered) {
         timer.step('wait2-capture-triggered')
-        debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
+        debug(`[${target}] capture was expicitly triggered by window.triggerCapture`)
       } else {
         timer.step('wait2-delay')
-        debug(`delay of ${delay / 1000} seconds was reached for ${target}`)
+        debug(`[${target}] delay of ${delay / 1000} seconds was reached`)
       }
     } else {
       // x-capture is deprecated, kept for retro-compatibility
@@ -219,20 +237,20 @@ const waitForPage = async (page, target, animate, timer) => {
       }
       timer.step('wait2-get-meta2')
       if (captureMeta === 'trigger') {
-        debug(`wait for explicit window.triggerCapture call after network was found idle for ${target}`)
+        debug(`[${target}] wait for explicit window.triggerCapture call after network was found idle`)
         await Promise.race([
           triggerCapture,
           new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
         ])
         if (captureTriggered) {
           timer.step('wait2-capture-triggered')
-          debug(`Capture was expicitly triggered by window.triggerCapture call for ${target}`)
+          debug(`[${target}] capture was expicitly triggered by window.triggerCapture call`)
         } else {
           timer.step('wait2-timeout')
-          debug(`timeout of ${config.screenshotTimeout} was reached for ${target}`)
+          debug(`[${target}] timeout of ${config.screenshotTimeout} was reached`)
         }
       } else {
-        debug(`wait 1000ms more after idle network for safety ${target}`)
+        debug(`[${target}] wait 1000ms more after idle network for safety`)
         await new Promise(resolve => setTimeout(resolve, 1000))
         timer.step('wait2-1s')
       }
@@ -242,7 +260,7 @@ const waitForPage = async (page, target, animate, timer) => {
 }
 
 const setPageLocale = async (page, lang, timezone) => {
-  debug(`Localization lang=${lang}, timezone=${timezone}`)
+  debug(`[${page.url()}] localization lang=${lang}, timezone=${timezone}`)
   await page.emulateTimezone(timezone)
   await page.setExtraHTTPHeaders({
     'Accept-Language': lang

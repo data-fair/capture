@@ -19,7 +19,7 @@ exports.capture = async (target, page, width, height, res) => {
   let i = 0
   while (!stopped && i < config.maxAnimationFrames) {
     i++
-    if (i % 15 === 0) debug(`${i} frames taken of ${target}`)
+    if (i % 15 === 0) debug(`[${target}] ${i} frames taken`)
     stopped = await page.evaluate(() => window.animateCaptureFrame())
     let buffer
     await Promise.race([
@@ -32,7 +32,7 @@ exports.capture = async (target, page, width, height, res) => {
   }
   gif.finish()
   await pipelinePromise
-  debug(`gif screenshot is taken ${target}`)
+  debug(`[${target}] gif screenshot is taken`)
   const rawBuffer = await fs.promises.readFile(path)
   cleanup()
   const compressedBuffer = await imageminGifsicle({ optimizationLevel: 2 })(rawBuffer)

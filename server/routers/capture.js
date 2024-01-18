@@ -31,15 +31,15 @@ async function auth(req, res, next) {
     return res.status(400).send('Failed to parse url ' + err.message)
   }
   if (!sameHost && config.onlySameHost) {
-    debug(`${target} is NOT on same host as capture service (${captureHost}), reject`)
+    debug(`[${target}] NOT on same host as capture service (${captureHost}), reject`)
     return res.status(400).send('Only same host targets are accepted')
   }
 
   if (sameHost && req.cookies && Object.keys(req.cookies).length && req.query.cookies !== 'false') {
-    debug(`${target} transmit cookies`, Object.keys(req.cookies))
+    debug(`[${target}] transmit cookies`, Object.keys(req.cookies))
     req.cookies = Object.keys(req.cookies).map(name => ({ name, value: req.cookies[name], url: target }))
   } else {
-    debug(`${target} do not transmit cookies`)
+    debug(`[${target}] do not transmit cookies`)
     delete req.cookies
   }
   next()
@@ -47,7 +47,7 @@ async function auth(req, res, next) {
 
 router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
   const target = req.query.target
-  debug(`capture screenshot for target url ${target}`)
+  debug(`[${target}] capture screenshot`)
   const timer = createTimer(req.originalUrl)
 
   // read query params
@@ -78,7 +78,7 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
     timer
   )
 
-  debug(`page is opened ${target}`)
+  debug(`[${target}] page is opened`)
   try {
     if (animationActivated) {
       debug(`take gif screenshot ${target}`)
@@ -100,10 +100,10 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
         timer.step('screenshot-timeout')
         throw new Error(`Failed to take screenshot of page "${target}" before timeout`)
       }
-      debug(`png screenshot is taken ${target}`)
+      debug(`[${target}] png screenshot is taken`)
       timer.type = 'png'
       if (type === 'jpg') {
-        debug(`convert png screenshot to jpg`)
+        debug(`[${target}] convert png screenshot to jpg`)
         const image = await jimp.read(buffer)
         image.quality(90)
         buffer = await image.getBufferAsync(jimp.MIME_JPEG)
@@ -126,7 +126,7 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
 
 router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
   const target = req.query.target
-  debug(`print page for target url ${target}`)
+  debug(`[${target}] print page`)
 
   // read query params
   const type = req.query.type || 'pdf'
@@ -144,7 +144,7 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
     (config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host),
     timer
   )
-  debug(`page is opened ${target}`)
+  debug(`[${target}] page is opened`)
   try {
     if (type === 'pdf') {
       const landscape = req.query.landscape === 'true'
@@ -169,7 +169,7 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
       ])
       if (!buffer) throw new Error(`Failed to make PDF print of page "${target}" before timeout`)
       timer.step('print-pdf')
-      debug(`PDF print is taken ${target}`)
+      debug(`[${target}] PDF print is taken`)
       res.type('pdf')
       if (req.query.filename) res.attachment(req.query.filename)
       res.send(buffer)
@@ -181,7 +181,7 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
       ])
       if (!buffer) throw new Error(`Failed to make HTML print of page "${target}" before timeout`)
       timer.step('print-html')
-      debug(`HTML print is taken ${target}`)
+      debug(`[${target}] HTML print is taken`)
       if (req.query.filename) res.attachment(req.query.filename)
       res.send(buffer.toString())
     }
