@@ -97,6 +97,19 @@ async function openInPage(page, target, lang, timezone, cookies, viewport, anima
     }
   }
 
+  // replace all canvas with img to make sure we capture them
+  // cf https://github.com/puppeteer/puppeteer/issues/1731#issuecomment-864345938
+  let canvases = await page.$$('canvas')
+  for (let canvas of canvases) {
+    let str = await canvas.screenshot({ encoding: 'base64' })
+    let dataUrl = 'data:image/png;base64,' + str
+    await canvas.evaluate((canvas, dataUrl) => {
+      const newDiv = document.createElement('div')
+      newDiv.innerHTML = '<img src="' + dataUrl + '">'
+      canvas.parentNode.replaceChild(newDiv, canvas)
+    }, dataUrl)
+  }
+
   return { page, animationActivated }
 }
 
