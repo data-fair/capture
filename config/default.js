@@ -15,7 +15,8 @@ module.exports = {
   },
   maxAnimationFrames: 1800, // 2 minutes at 15fps
   puppeteerLaunchOptions: {
-    executablePath: 'chromium',
+    executablePath: 'google-chrome-stable',
+    // args: ['--use-gl=egl', '--use-angle=swiftshader', '--in-process-gpu'],
     args: [],
     headless: 'new'
   },

@@ -35,7 +35,7 @@ Check the service with these examples:
   - [fallback to standard screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test1.html)
   - [screenshot converted to jpg](http://localhost:5607/api/v1/screenshot?key=capture&type=jpg&target=http://localhost:5607/test/resources/test-anim.html)
   - [screenshot with custom jpg filename](http://localhost:5607/api/v1/screenshot?key=capture&filename=test.jpg&target=http://localhost:5607/test/resources/test-anim.html)
-
+  - [remote url with a webgl based map](http://localhost:5607/api/v1/print?key=capture&target=https://staging-koumoul.com/cadastre/parcel?id=56251000AV0142)
 ## Security
 
 Consider reading this article https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image

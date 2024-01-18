@@ -54,6 +54,7 @@ const debugPage = (page) => {
 // start / stop a single puppeteer browser
 let _closed, _browser, _contextPool, _publicPagePool
 exports.start = async (app) => {
+  console.log('init puppeteer browser', config.puppeteerLaunchOptions)
   _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
   _contextPool = exports.contextPool = genericPool.createPool(contextFactory, { min: 1, max: config.concurrency })
   _publicPagePool = exports.publicPagePool = genericPool.createPool(publicPageFactory, { min: 1, max: config.concurrencyPublic !== null ? config.concurrencyPublic : config.concurrency })
@@ -95,19 +96,6 @@ async function openInPage(page, target, lang, timezone, cookies, viewport, anima
       debug(`${frameUrl} from iframe in ${target} is NOT on same host as capture service (${captureHost}), reject`)
       throw createError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)
     }
-  }
-
-  // replace all canvas with img to make sure we capture them
-  // cf https://github.com/puppeteer/puppeteer/issues/1731#issuecomment-864345938
-  let canvases = await page.$$('canvas')
-  for (let canvas of canvases) {
-    let str = await canvas.screenshot({ encoding: 'base64' })
-    let dataUrl = 'data:image/png;base64,' + str
-    await canvas.evaluate((canvas, dataUrl) => {
-      const newDiv = document.createElement('div')
-      newDiv.innerHTML = '<img src="' + dataUrl + '">'
-      canvas.parentNode.replaceChild(newDiv, canvas)
-    }, dataUrl)
   }
 
   return { page, animationActivated }
