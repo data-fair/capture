@@ -2,6 +2,7 @@ const config = require('config')
 const puppeteer = require('puppeteer')
 const genericPool = require('generic-pool')
 const createError = require('http-errors')
+const prometheus = require('./prometheus')
 const debug = require('debug')('capture')
 
 const contextFactory = {
@@ -127,9 +128,22 @@ exports.withPage = async (target, lang, timezone, cookies, viewport, animate, ca
   try {
     if (cookies || config.concurrencyPublic === 0) {
       debug(`[${target}] use incognito context from pool`)
-      context = await _contextPool.acquire()
-      timer.step('acquire-context')
-      page = await context.newPage()
+      let pageAttempts = 0
+      while (!page) {
+        pageAttempts++
+        context = await _contextPool.acquire()
+        timer.step('acquire-context')
+        try {
+          page = await context.newPage()
+        } catch (err) {
+          if (pageAttempts === config.concurrency) {
+            throw err
+          } else {
+            debug(`[${target}] delete incognito context from pool because it couldn't be used to open a page`)
+            await _contextPool.destroy(context)
+          }
+        }
+      }
       debugPage(page)
       timer.step('newPage')
     } else {
@@ -174,6 +188,7 @@ const safeCleanContext = async (page, cookies, context, openSuccess) => {
           'timed out while cleaning page context'
         )
         await _contextPool.release(context)
+        prometheus.contextsCleanups.inc()
       } catch (err) {
         console.error('Failed to clean page properly, do not reuse this context', err)
         await _contextPool.destroy(context)

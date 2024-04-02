@@ -37,6 +37,11 @@ exports.tasks = new client.Histogram({
   labelNames: ['step', 'type'],
   registers: [localRegister]
 })
+exports.contextsCleanups = new client.Counter({
+  name: 'df_capture_contexts_cleanups',
+  help: 'Number of times a browser context was cleaned up for later reuse',
+  registers: [localRegister]
+})
 
 exports.acquireContextPending = new client.Gauge({
   name: 'df_capture_acquire_context_pending',
