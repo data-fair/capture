@@ -1,5 +1,7 @@
-const debug = require('debug')('timer')
-const prometheus = require('./prometheus')
+import debugModule from 'debug'
+import * as metrics from './metrics.ts'
+
+const debug = debugModule('timer')
 
 export class Timer {
   name: string
@@ -22,7 +24,7 @@ export class Timer {
   finish () {
     debug(`${name}, type=${this.type}, ${Object.keys(this.times).map(step => (step + '=' + (Math.round(this.times[step] / 10) / 1000))).join(', ')}`)
     for (const step in this.times) {
-      prometheus.tasks.labels({ step, type: this.type }).observe(this.times[step] / 1000)
+      metrics.tasks.labels({ step, type: this.type }).observe(this.times[step] / 1000)
     }
   }
 }

@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { session } from '@data-fair/lib-express/index.js'
-import { startObserver, stopObserver, internalError } from '@data-fair/lib-node/observer.js'
+import { startObserver, stopObserver } from '@data-fair/lib-node/observer.js'
 import eventPromise from '@data-fair/lib-utils/event-promise.js'
 import { createHttpTerminator } from 'http-terminator'
 import app from './app.ts'
@@ -29,5 +29,5 @@ export const start = async () => {
 export const stop = async () => {
   await httpTerminator.terminate()
   if (config.observer.active) await stopObserver()
-    await pageUtils.stop()
+  await pageUtils.stop()
 }

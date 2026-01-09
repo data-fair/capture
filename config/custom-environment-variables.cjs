@@ -4,7 +4,6 @@ module.exports = {
   onlySameHost: 'ONLY_SAME_HOST',
   screenshotTimeout: 'SCREENSHOT_TIMEOUT',
   concurrency: 'CONCURRENCY',
-  concurrencyPublic: 'CONCURRENCY_PUBLIC',
   defaultLang: 'DEFAULT_LANG',
   defaultTimezone: 'DEFAULT_TIMEZONE',
   secretKeys: {

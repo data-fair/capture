@@ -1,9 +1,8 @@
-import { resolve } from 'node:path'
-import { session, errorHandler, createSiteMiddleware, createSpaMiddleware } from '@data-fair/lib-express/index.js'
+import { session, errorHandler, createSiteMiddleware } from '@data-fair/lib-express/index.js'
 import express from 'express'
 import helmet from 'helmet'
 import apiDocs from '../contract/api-docs.ts'
-import { router } from './routers/capture'
+import { router } from './routers/capture.ts'
 
 const app = express()
 export default app

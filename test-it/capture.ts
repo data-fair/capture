@@ -97,13 +97,13 @@ describe('capture', () => {
       const res = responses[i]
       assert.equal(res.status, 200)
       assert.equal(res.headers['content-type'], 'application/pdf')
-      let content = await pdfParse(res.data)
+      const content = await pdfParse(res.data)
       assert.ok(content.text.includes('Test page 1'))
       assert.ok(content.text.includes(`>footer ${i}<`))
       if (i % 2 === 0) {
         assert.ok(content.text.includes(`id_token=-footer ${i}-`))
       } else {
-        assert.ok(!content.text.includes(`id_token=`))
+        assert.ok(!content.text.includes('id_token='))
       }
     }
     const t1 = new Date().getTime()
@@ -124,7 +124,7 @@ describe('capture', () => {
       const res = responses[i]
       assert.equal(res.status, 200)
       assert.equal(res.headers['content-type'], 'application/pdf')
-      let content = await pdfParse(res.data)
+      const content = await pdfParse(res.data)
       assert.ok(content.text.includes('Test page 1'))
       assert.ok(content.text.includes(`>footer ${i}<`))
     }
@@ -133,7 +133,7 @@ describe('capture', () => {
   })
 
   it('make prints of a page that is never idle', async () => {
-    let res = await ax.get('print', { params: { target: 'http://localhost:5607/test/resources/test-timeout.html' }, responseType: 'arraybuffer' })
+    const res = await ax.get('print', { params: { target: 'http://localhost:5607/test/resources/test-timeout.html' }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'application/pdf')
     const content = await pdfParse(res.data)
@@ -160,7 +160,7 @@ describe('capture', () => {
   })
 
   it('convert screenshot to jpg', async () => {
-    let res = await ax.get('screenshot', { params: { target, type: 'jpg' } })
+    const res = await ax.get('screenshot', { params: { target, type: 'jpg' } })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/jpeg')
   })

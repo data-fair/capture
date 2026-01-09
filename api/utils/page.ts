@@ -89,10 +89,10 @@ type OpenPageResult = {
 async function openInPage (
   page: Page,
   target: string,
-  lang: string,
-  timezone: string,
+  lang: string | undefined,
+  timezone: string | undefined,
   cookies: CookieData[],
-  viewport: Viewport,
+  viewport: Viewport | undefined,
   animate: boolean,
   captureHost: string,
   timer: Timer
@@ -130,10 +130,10 @@ export const promiseTimeout = async <T>(promise: Promise<T>, ms: number, msg = '
 
 export const withPage = async (
   target: string,
-  lang: string,
-  timezone: string,
+  lang: string | undefined,
+  timezone: string | undefined,
   cookies: CookieData[],
-  viewport: Viewport,
+  viewport: Viewport | undefined,
   animate: boolean,
   captureHost: string,
   timer: Timer,

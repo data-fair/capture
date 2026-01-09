@@ -56,7 +56,7 @@ export default {
     version: '1.0.0'
   },
   servers: [{
-    url: config.publicUrl + '/api/v1',
+    url: '/capture/api/v1',
     description: process.env.NODE_ENV
   }],
   components: {
