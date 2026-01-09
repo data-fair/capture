@@ -1,4 +1,4 @@
-const config = require('config')
+import config from '#config'
 
 const commonParams = [
   {
@@ -42,7 +42,7 @@ const commonParams = [
   }
 ]
 
-module.exports = {
+export default {
   openapi: '3.0.0',
   info: {
     title: 'Capture',

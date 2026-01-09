@@ -1,34 +1,63 @@
-const config = require('config')
-const puppeteer = require('puppeteer')
-const genericPool = require('generic-pool')
-const createError = require('http-errors')
-const prometheus = require('./prometheus')
-const debug = require('debug')('capture')
+import config from '#config'
+import puppeteer, { type Viewport, type Browser, type BrowserContext, type Page, type CookieData } from 'puppeteer'
+import genericPool, { type Factory, type Pool } from 'generic-pool'
+import { contextsCleanups } from './metrics.ts'
+import debugModule from 'debug'
+import { Timer } from './timer.ts'
+import { httpError } from '@data-fair/lib-express'
 
-const contextFactory = {
-  async create() {
-    // create pages in incognito contexts so that cookies are not shared
-    // each context is used sequentially only because of cookies or other states conflicts
-    return _browser.createIncognitoBrowserContext()
-  },
-  async destroy(context) {
-    await context.close()
-  }
-}
-const publicPageFactory = {
-  async create() {
-    // create pages in incognito contexts so that cookies are not shared
-    // each context is used sequentially only because of cookies or other states conflicts
-    const page = await _browser.defaultBrowserContext().newPage()
-    debugPage(page)
-    return page
-  },
-  async destroy(page) {
-    await page.close()
-  }
+const debug = debugModule('capture')
+
+let _closed = false
+
+let _browser: Browser
+let _contextPool: Pool<BrowserContext>
+
+export function contextPool () {
+  if (!_contextPool) throw new Error('contextPool not initialized')
+  return _contextPool
 }
 
-const debugPage = (page) => {
+export const start = async () => {
+  console.log('init puppeteer browser', config.puppeteerLaunchOptions)
+  _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
+  const contextFactory: Factory<BrowserContext> = {
+    async create () {
+    // create pages in incognito contexts so that cookies are not shared
+    // each context is used sequentially only because of cookies or other states conflicts
+      return _browser.createBrowserContext({})
+    },
+    async destroy (context) {
+      await context.close()
+    }
+  }
+  _contextPool = genericPool.createPool(contextFactory, { max: config.concurrency })
+
+  // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
+  _browser.on('disconnected', async () => {
+    if (!_closed) {
+      console.log('Browser was disconnected for some reason, reconnect')
+      try {
+        await _contextPool.drain()
+        _contextPool.clear()
+      } catch (err) {
+        console.log('Error while draining replaced contexts pool', err)
+      }
+      exports.start()
+    }
+  })
+}
+
+export const stop = async () => {
+  _closed = true
+  if (_browser) await _browser.close()
+  if (_contextPool) {
+    await _contextPool.drain()
+    _contextPool.clear()
+  }
+}
+
+const debugPage = (page: Page) => {
   page.on('console', async msg => {
     try {
       const args = []
@@ -48,54 +77,28 @@ const debugPage = (page) => {
     debug(`[${page.url()}] error: ${err}`)
   })
   page.on('requestfailed', request => {
-    debug(`[${page.url()}] requestfailed: ${request.failure().errorText} ${request.url()}`)
+    debug(`[${page.url()}] requestfailed: ${request.failure()?.errorText} ${request.url()}`)
   })
 }
 
-// start / stop a single puppeteer browser
-let _closed, _browser, _contextPool, _publicPagePool
-exports.start = async (app) => {
-  console.log('init puppeteer browser', config.puppeteerLaunchOptions)
-  _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
-  _contextPool = exports.contextPool = genericPool.createPool(contextFactory, { max: config.concurrency })
-  _publicPagePool = exports.publicPagePool = genericPool.createPool(publicPageFactory, { max: config.concurrencyPublic !== null ? config.concurrencyPublic : config.concurrency })
-
-  // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
-  _browser.on('disconnected', async () => {
-    if (!_closed) {
-      console.log('Browser was disconnected for some reason, reconnect')
-      try {
-        await _contextPool.drain()
-        _contextPool.clear()
-      } catch (err) {
-        console.log('Error while draining replaced contexts pool', err)
-      }
-      try {
-        await _publicPagePool.drain()
-        _publicPagePool.clear()
-      } catch (err) {
-        console.log('Error while draining public pages pool', err)
-      }
-      exports.start()
-    }
-  })
-}
-exports.stop = async () => {
-  _closed = true
-  if (_browser) await _browser.close()
-  if (_contextPool) {
-    await _contextPool.drain()
-    _contextPool.clear()
-  }
-  if (_publicPagePool) {
-    await _publicPagePool.drain()
-    _publicPagePool.clear()
-  }
+type OpenPageResult = {
+  page: Page,
+  animationActivated: boolean
 }
 
-async function openInPage(page, target, lang, timezone, cookies, viewport, animate, captureHost, timer) {
+async function openInPage (
+  page: Page,
+  target: string,
+  lang: string,
+  timezone: string,
+  cookies: CookieData[],
+  viewport: Viewport,
+  animate: boolean,
+  captureHost: string,
+  timer: Timer
+): Promise<OpenPageResult> {
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
-  if (cookies) await page.setCookie.apply(page, cookies)
+  if (cookies) await page.browserContext().setCookie(...cookies)
   if (viewport) await page.setViewport(viewport)
   timer.step('configure-page')
   const animationActivated = await waitForPage(page, target, animate, timer)
@@ -107,56 +110,61 @@ async function openInPage(page, target, lang, timezone, cookies, viewport, anima
     try {
       sameHost = new URL(frameUrl).host === captureHost
     } catch (err) {
-      throw createError(400, 'IFrame with invalid URL :' + frameUrl)
+      throw httpError(400, 'IFrame with invalid URL :' + frameUrl)
     }
     if (!sameHost && config.onlySameHost) {
       debug(`${frameUrl} from iframe in ${target} is NOT on same host as capture service (${captureHost}), reject`)
-      throw createError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)
+      throw httpError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)
     }
   }
 
   return { page, animationActivated }
 }
 
-const promiseTimeout = exports.promiseTimeout = async (promise, ms, msg = 'timeout') => {
+export const promiseTimeout = async <T>(promise: Promise<T>, ms: number, msg = 'timeout') => {
   return Promise.race([
     promise,
-    new Promise((resolve, reject) => setTimeout(() => reject(new Error(msg)), ms))
+    new Promise<T>((resolve, reject) => setTimeout(() => reject(new Error(msg)), ms))
   ])
 }
 
-exports.withPage = async (target, lang, timezone, cookies, viewport, animate, captureHost, timer, callbackTimeoutMsg, callback) => {
+export const withPage = async (
+  target: string,
+  lang: string,
+  timezone: string,
+  cookies: CookieData[],
+  viewport: Viewport,
+  animate: boolean,
+  captureHost: string,
+  timer: Timer,
+  callbackTimeoutMsg: string,
+  callback: (result: OpenPageResult) => Promise<void>) => {
   if (target.includes('capture-test-error=true')) {
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
   }
   let context, page, openSuccess
   try {
-    if (cookies || config.concurrencyPublic === 0) {
-      debug(`[${target}] use incognito context from pool`)
-      let pageAttempts = 0
-      while (!page) {
-        pageAttempts++
-        context = await _contextPool.acquire()
-        timer.step('acquire-context')
-        try {
-          page = await context.newPage()
-        } catch (err) {
-          if (pageAttempts === config.concurrency) {
-            throw err
-          } else {
-            debug(`[${target}] delete incognito context from pool because it couldn't be used to open a page`)
-            await _contextPool.destroy(context)
-          }
+    debug(`[${target}] use incognito context from pool`)
+    let pageAttempts = 0
+    while (!page) {
+      pageAttempts++
+      context = await _contextPool.acquire()
+      timer.step('acquire-context')
+      try {
+        page = await context.newPage()
+      } catch (err) {
+        if (pageAttempts === config.concurrency) {
+          throw err
+        } else {
+          debug(`[${target}] delete incognito context from pool because it couldn't be used to open a page`)
+          await _contextPool.destroy(context)
         }
       }
-      debugPage(page)
-      timer.step('newPage')
-    } else {
-      debug(`[${target}] use default brower context`)
-      page = await _publicPagePool.acquire()
-      timer.step('acquire-public-page')
     }
+    debugPage(page)
+    timer.step('newPage')
+
     const result = await promiseTimeout(
       openInPage(page, target, lang, timezone, cookies, viewport, animate, captureHost, timer),
       config.screenshotTimeout * 2,
@@ -170,53 +178,54 @@ exports.withPage = async (target, lang, timezone, cookies, viewport, animate, ca
       callbackTimeoutMsg
     )
   } finally {
-    await safeCleanContext(page, cookies, context, openSuccess)
+    if (page) await safeCleanContext(page, !!openSuccess)
   }
   timer.step('close-page')
 }
 
-const cleanIncognitoContext = async (page, cookies) => {
+const cleanContext = async (page: Page) => {
   // always empty cookies to prevent inheriting them in next use of the context
-  // to be extra sure we delete the cookies that were explicitly passed to page, and check for other cookies that might have been created
-  await page.deleteCookie.apply(page, cookies)
-  const otherCookies = await page.cookies()
-  await page.deleteCookie.apply(page, otherCookies)
+  const cookies = await page.browserContext().cookies()
+  for (const cookie of cookies) {
+    await page.browserContext().deleteCookie(cookie)
+  }
   await page.close()
 }
 
-const safeCleanContext = async (page, cookies, context, openSuccess) => {
-  if (context && context.isIncognito()) {
-    if (openSuccess) {
-      try {
-        await promiseTimeout(
-          cleanIncognitoContext(page, cookies),
-          2000,
-          'timed out while cleaning page context'
-        )
-        await _contextPool.release(context)
-        prometheus.contextsCleanups.inc()
-      } catch (err) {
-        console.error('Failed to clean page properly, do not reuse this context', err)
-        await _contextPool.destroy(context)
-      }
-    } else {
-      await _contextPool.destroy(context)
+const safeCleanContext = async (page: Page, openSuccess: boolean) => {
+  if (openSuccess) {
+    try {
+      await promiseTimeout(
+        cleanContext(page),
+        2000,
+        'timed out while cleaning page context'
+      )
+      await _contextPool.release(page.browserContext())
+      contextsCleanups.inc()
+    } catch (err) {
+      console.error('Failed to clean page properly, do not reuse this context', err)
+      await _contextPool.destroy(page.browserContext())
     }
-  } else if (page) {
-    await _publicPagePool.destroy(page)
+  } else {
+    await _contextPool.destroy(page.browserContext())
   }
 }
 
 // quite complex strategy to wait for the page to be ready for capture.
 // it can either explitly call a triggerCapture function or we wait for idle network + 1s
-const waitForPage = async (page, target, animate, timer) => {
+const waitForPage = async (
+  page: Page,
+  target: string,
+  animate: boolean,
+  timer: Timer
+) => {
   // Prepare a function that the page can call to signal that it is ready for capture
   let captureTriggered = false
   let timeoutReached = false
   let animationActivated = false
-  const triggerCapture = new Promise(resolve => page.exposeFunction('triggerCapture', (animationSupported) => {
+  const triggerCapture = new Promise<void>(resolve => page.exposeFunction('triggerCapture', (animationSupported?: boolean) => {
     captureTriggered = true
-    animationActivated = animate && animationSupported
+    animationActivated = !!(animate && animationSupported)
     resolve()
     // return animate to the page inside the capture
     return animate
@@ -224,8 +233,8 @@ const waitForPage = async (page, target, animate, timer) => {
 
   try {
     // wait for network inactivity, but it can be interrupted if triggerCapture is called
-    const waitOptions = { waitUntil: 'networkidle0', timeout: config.screenshotTimeout }
-    await Promise.race([ page.goto(target, waitOptions), triggerCapture ])
+    const waitOptions = { waitUntil: 'networkidle0' as const, timeout: config.screenshotTimeout }
+    await Promise.race([page.goto(target, waitOptions), triggerCapture])
 
     if (captureTriggered) {
       timer.step('wait1-capture-triggered')
@@ -234,7 +243,7 @@ const waitForPage = async (page, target, animate, timer) => {
       timer.step('wait1-network-idle')
       debug(`[${target}] network was idle during 500ms`)
     }
-  } catch (err) {
+  } catch (err: any) {
     if (err.name !== 'TimeoutError') throw err
     else {
       timer.step('wait1-timeout')
@@ -252,7 +261,7 @@ const waitForPage = async (page, target, animate, timer) => {
     // Adapt the wait strategy based on the x-capture meta
     let captureDelayMeta
     try {
-      captureDelayMeta = await page.$eval(`head > meta[name='df:capture-delay']`, el => el.content)
+      captureDelayMeta = await page.$eval('head > meta[name=\'df:capture-delay\']', el => el.content)
     } catch (err) {
       // nothing to do, meta is probably absent
     }
@@ -274,7 +283,7 @@ const waitForPage = async (page, target, animate, timer) => {
       // x-capture is deprecated, kept for retro-compatibility
       let captureMeta
       try {
-        captureMeta = await page.$eval(`head > meta[name='x-capture']`, el => el.content)
+        captureMeta = await page.$eval('head > meta[name=\'x-capture\']', el => el.content)
       } catch (err) {
         // nothing to do, meta is probably absent
       }
@@ -302,7 +311,7 @@ const waitForPage = async (page, target, animate, timer) => {
   return animationActivated
 }
 
-const setPageLocale = async (page, lang, timezone) => {
+const setPageLocale = async (page: Page, lang: string, timezone: string) => {
   debug(`[${page.url()}] localization lang=${lang}, timezone=${timezone}`)
   await page.emulateTimezone(timezone)
   await page.setExtraHTTPHeaders({
@@ -312,12 +321,12 @@ const setPageLocale = async (page, lang, timezone) => {
     const langs = [lang]
     if (lang.includes('-')) langs.push(lang.split('-')[0])
     Object.defineProperty(navigator, 'language', {
-      get: function() {
+      get: function () {
         return lang
       }
     })
     Object.defineProperty(navigator, 'languages', {
-      get: function() {
+      get: function () {
         return langs
       }
     })

@@ -4,7 +4,7 @@ module.exports = {
     executablePath: 'chromium',
     args: ['--no-sandbox']
   },
-  prometheus: {
+  observer: {
     active: false
   }
 }

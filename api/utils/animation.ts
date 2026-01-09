@@ -1,15 +1,18 @@
-const { file } = require('tmp-promise')
-const config = require('config')
-const fs = require('fs')
-const util = require('util')
-const stream = require('stream')
-const pipeline = util.promisify(stream.pipeline)
-const GifEncoder = require('gif-encoder')
-const getPixels = util.promisify(require('get-pixels'))
-const imageminGifsicle = require('imagemin-gifsicle')
-const debug = require('debug')('capture')
+import { file } from 'tmp-promise'
+import config from '#config'
+import fs from 'fs'
+import { promisify } from 'util'
+import stream from 'stream'
+import GifEncoder from 'gif-encoder'
+import getPixelsCb from 'get-pixels'
+import imageminGifsicle from 'imagemin-gifsicle'
+import debug from 'debug'
+import { type Page } from 'puppeteer'
 
-exports.capture = async (target, page, width, height, res) => {
+const pipeline = promisify(stream.pipeline)
+const getPixels = promisify(getPixelsCb)
+
+export const capture = async (target: string, page: Page, width: number, height: number, res) => {
   let stopped = false
   const gif = new GifEncoder(width, height)
   gif.setFrameRate(15) // 15fps seams like a good compromise for a gif
@@ -20,7 +23,10 @@ exports.capture = async (target, page, width, height, res) => {
   while (!stopped && i < config.maxAnimationFrames) {
     i++
     if (i % 15 === 0) debug(`[${target}] ${i} frames taken`)
-    stopped = await page.evaluate(() => window.animateCaptureFrame())
+    stopped = await page.evaluate(() => {
+      // @ts-ignore
+      return window.animateCaptureFrame()
+    })
     let buffer
     await Promise.race([
       page.screenshot().then(b => { buffer = b }),

@@ -1,10 +1,8 @@
 module.exports = {
-  port: 5607,
+  port: 8080,
   publicUrl: 'http://localhost:5607',
-  directoryUrl: null,
-  sessionDomain: null,
-  onlySameHost: false,
-  trustHeaderHost: false, // when applying onlySameHost policy we will trust req.headers.host instead of relying on config.publicUrl
+  privateDirectoryUrl: 'http://simple-directory:8080',
+  onlySameHost: true, // better as we use chrome without sandboxing
   screenshotTimeout: 20000,
   concurrency: 5,
   concurrencyPublic: null,
@@ -20,7 +18,7 @@ module.exports = {
     args: [],
     headless: 'new'
   },
-  prometheus: {
+  observer: {
     active: true,
     port: 9090
   }

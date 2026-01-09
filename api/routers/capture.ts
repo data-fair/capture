@@ -1,19 +1,16 @@
-const config = require('config')
-const express = require('express')
-const debug = require('debug')('capture')
-const URL = require('url').URL
-const jimp = require('jimp')
-const asyncWrap = require('../utils/async-wrap')
-const headerFooter = require('../utils/header-footer')
-const pageUtils = require('../utils/page')
-const animationUtils = require('../utils/animation')
-const { createTimer } = require('../utils/timer')
+import express from 'express'
+import debug from 'debug'
+import jimp from 'jimp'
+import { footer } from '../utils/header-footer.ts'
+import pageUtils from '../utils/page.ts'
+import animationUtils from '../utils/animation.ts'
+import { createTimer } from '../utils/timer.ts'
+import config from 'config'
 
-const router = exports.router = express.Router()
+export const router = express.Router()
 
 async function auth(req, res, next) {
   if (!req.app.get('session')) {
-    // console.error('WARNING: It is recommended to define directoryUrl parameter')
   } else {
     await req.app.get('session').auth(req, res, () => {})
     if (!req.user && req.query.key !== config.secretKeys.capture) return res.status(401).send()
@@ -22,9 +19,8 @@ async function auth(req, res, next) {
   if (!req.query.target) return res.status(400).send('parameter "target" is required')
   const target = req.query.target
 
-  // transmit cookies from incoming query if we target and the current service are on same host
   let sameHost
-  const captureHost = config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host
+  const captureHost = reqHost(req)
   try {
     sameHost = new URL(target).host === captureHost
   } catch (err) {
@@ -45,12 +41,11 @@ async function auth(req, res, next) {
   next()
 }
 
-router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
+router.get('/screenshot', auth, async (req, res, next) => {
   const target = req.query.target
   debug(`[${target}] capture screenshot`)
   const timer = createTimer(req.originalUrl)
 
-  // read query params
   let width, height
   try {
     width = req.query.width ? parseInt(req.query.width) : 800
@@ -74,7 +69,7 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
     req.cookies,
     { width, height },
     type === 'gif',
-    (config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host),
+    reqHost(req),
     timer,
     `Failed to take screenshot of page "${target}" before timeout`,
     async ({ page, animationActivated }) => {
@@ -109,13 +104,12 @@ router.get('/screenshot', asyncWrap(auth), asyncWrap(async (req, res, next) => {
     }
   )
   timer.finish()
-}))
+})
 
-router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
+router.get('/print', auth, async (req, res, next) => {
   const target = req.query.target
   debug(`[${target}] print page`)
 
-  // read query params
   const type = req.query.type || 'pdf'
   if (!['html', 'pdf'].includes(type)) return res.status(400).send('supported types are "pdf" and "html"')
 
@@ -128,7 +122,7 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
     req.cookies,
     null,
     false,
-    (config.trustHeaderHost ? req.headers.host : new URL(config.publicUrl).host),
+    reqHost(req),
     timer,
     `Failed to make ${type} print of page "${target}" before timeout`,
     async ({ page }) => {
@@ -147,7 +141,7 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
         if (showFooter) {
           pdfOptions.displayHeaderFooter = true
           pdfOptions.headerTemplate = ' '
-          pdfOptions.footerTemplate = headerFooter.footer(footer)
+          pdfOptions.footerTemplate = footer(footer)
         }
         const buffer = await page.pdf(pdfOptions)
         timer.step('print-pdf')
@@ -165,4 +159,4 @@ router.get('/print', asyncWrap(auth), asyncWrap(async (req, res, next) => {
     }
   )
   timer.finish()
-}))
+})
