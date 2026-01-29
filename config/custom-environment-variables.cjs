@@ -2,6 +2,7 @@ module.exports = {
   port: 'PORT',
   privateDirectoryUrl: 'PRIVATE_DIRECTORY_URL',
   onlySameHost: 'ONLY_SAME_HOST',
+  useHostHeader: 'USE_HOST_HEADER',
   helmet: {
     active: 'HELMET_ACTIVE'
   },
