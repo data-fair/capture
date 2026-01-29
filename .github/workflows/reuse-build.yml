@@ -25,8 +25,8 @@ jobs:
         echo '{"version": "${{github.ref_name}}", "repository": "${{github.server_url}}/${{github.repository}}", "commit": "${{github.sha}}", "date": "'$(date -Is)'"}' > BUILD.json
         cat BUILD.json
 
-    - name: Prepare docker tags for main image
-      id: docker_meta_main
+    - name: Prepare docker tags for image
+      id: docker_meta
       uses: docker/metadata-action@v5
       with:
         images: ghcr.io/${{ github.repository }}
@@ -37,15 +37,14 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           type=semver,pattern={{major}}
 
-    - name: Build and push main image
-      id: docker_build_main
+    - name: Build and push image
+      id: docker_build
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        target: main
-        tags: ${{ steps.docker_meta_main.outputs.tags }}
+        tags: ${{ steps.docker_meta.outputs.tags }}
         platforms: linux/amd64
-        labels: ${{ steps.docker_meta_main.outputs.labels }}
+        labels: ${{ steps.docker_meta.outputs.labels }}
         cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/buildcache
         cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/buildcache,mode=max
