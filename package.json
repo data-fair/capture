@@ -42,6 +42,7 @@
   "dependencies": {
     "@data-fair/lib-express": "^1.22.2",
     "config": "^4.1.1",
+    "cookie-parser": "^1.4.7",
     "debug": "^4.4.3",
     "express": "^5.2.1",
     "generic-pool": "^3.9.0",
@@ -63,7 +64,9 @@
     "@types/gif-encoder": "^0.7.4",
     "@types/imagemin-gifsicle": "^7.0.4",
     "eslint": "^9.39.2",
+    "jimp": "^1.6.0",
     "neostandard": "^0.12.2",
+    "pdf-parse": "^2.4.5",
     "typescript": "^5.9.3"
   }
 }

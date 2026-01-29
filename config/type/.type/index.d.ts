@@ -23,6 +23,7 @@ export type ApiConfig = {
   defaultLang: string;
   defaultTimezone: string;
   onlySameHost?: boolean;
+  useHostHeader?: boolean;
   screenshotTimeout: number;
   maxAnimationFrames: number;
   util?: unknown;

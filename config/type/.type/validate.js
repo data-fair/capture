@@ -4,7 +4,7 @@
 "use strict";
 export const validate = validate14;
 export default validate14;
-const schema16 = {"$id":"https://github.com/data-fair/events/api/config","x-exports":["types","validate"],"x-ajv":{"coerceTypes":"array"},"type":"object","title":"Api config","additionalProperties":false,"required":["port","secretKeys","helmet","observer","puppeteerLaunchOptions","concurrency","defaultLang","defaultTimezone","screenshotTimeout","maxAnimationFrames"],"properties":{"port":{"type":"number"},"privateDirectoryUrl":{"type":"string","pattern":"^https?://"},"helmet":{"type":"object","additionalProperties":false,"required":["active"],"properties":{"active":{"type":"boolean"}}},"secretKeys":{"type":"object","additionalProperties":false,"required":["capture"],"properties":{"capture":{"type":"string"}}},"observer":{"type":"object","properties":{"active":{"type":"boolean"},"port":{"type":"number"}}},"puppeteerLaunchOptions":{"type":"object"},"concurrency":{"type":"integer"},"defaultLang":{"type":"string"},"defaultTimezone":{"type":"string"},"onlySameHost":{"type":"boolean"},"screenshotTimeout":{"type":"number"},"maxAnimationFrames":{"type":"number"},"util":{},"get":{},"has":{}}};
+const schema16 = {"$id":"https://github.com/data-fair/events/api/config","x-exports":["types","validate"],"x-ajv":{"coerceTypes":"array"},"type":"object","title":"Api config","additionalProperties":false,"required":["port","secretKeys","helmet","observer","puppeteerLaunchOptions","concurrency","defaultLang","defaultTimezone","screenshotTimeout","maxAnimationFrames"],"properties":{"port":{"type":"number"},"privateDirectoryUrl":{"type":"string","pattern":"^https?://"},"helmet":{"type":"object","additionalProperties":false,"required":["active"],"properties":{"active":{"type":"boolean"}}},"secretKeys":{"type":"object","additionalProperties":false,"required":["capture"],"properties":{"capture":{"type":"string"}}},"observer":{"type":"object","properties":{"active":{"type":"boolean"},"port":{"type":"number"}}},"puppeteerLaunchOptions":{"type":"object"},"concurrency":{"type":"integer"},"defaultLang":{"type":"string"},"defaultTimezone":{"type":"string"},"onlySameHost":{"type":"boolean"},"useHostHeader":{"type":"boolean"},"screenshotTimeout":{"type":"number"},"maxAnimationFrames":{"type":"number"},"util":{},"get":{},"has":{}}};
 const func2 = Object.prototype.hasOwnProperty;
 const pattern0 = new RegExp("^https?://", "u");
 
@@ -613,25 +613,27 @@ data["onlySameHost"] = coerced9;
 }
 }
 }
-if(data.screenshotTimeout !== undefined){
-let data14 = data.screenshotTimeout;
-if(!(typeof data14 == "number")){
+if(data.useHostHeader !== undefined){
+let data14 = data.useHostHeader;
+if(typeof data14 !== "boolean"){
 let dataType10 = typeof data14;
 let coerced10 = undefined;
 if(dataType10 == 'object' && Array.isArray(data14) && data14.length == 1){
 data14 = data14[0];
 dataType10 = typeof data14;
-if(typeof data14 == "number"){
+if(typeof data14 === "boolean"){
 coerced10 = data14;
 }
 }
 if(!(coerced10 !== undefined)){
-if(dataType10 == "boolean" || data14 === null
-              || (dataType10 == "string" && data14 && data14 == +data14)){
-coerced10 = +data14;
+if(data14 === "false" || data14 === 0 || data14 === null){
+coerced10 = false;
+}
+else if(data14 === "true" || data14 === 1){
+coerced10 = true;
 }
 else {
-const err30 = {instancePath:instancePath+"/screenshotTimeout",schemaPath:"#/properties/screenshotTimeout/type",keyword:"type",params:{type: "number"},message:"must be number"};
+const err30 = {instancePath:instancePath+"/useHostHeader",schemaPath:"#/properties/useHostHeader/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
 if(vErrors === null){
 vErrors = [err30];
 }
@@ -644,13 +646,13 @@ errors++;
 if(coerced10 !== undefined){
 data14 = coerced10;
 if(data !== undefined){
-data["screenshotTimeout"] = coerced10;
+data["useHostHeader"] = coerced10;
 }
 }
 }
 }
-if(data.maxAnimationFrames !== undefined){
-let data15 = data.maxAnimationFrames;
+if(data.screenshotTimeout !== undefined){
+let data15 = data.screenshotTimeout;
 if(!(typeof data15 == "number")){
 let dataType11 = typeof data15;
 let coerced11 = undefined;
@@ -667,7 +669,7 @@ if(dataType11 == "boolean" || data15 === null
 coerced11 = +data15;
 }
 else {
-const err31 = {instancePath:instancePath+"/maxAnimationFrames",schemaPath:"#/properties/maxAnimationFrames/type",keyword:"type",params:{type: "number"},message:"must be number"};
+const err31 = {instancePath:instancePath+"/screenshotTimeout",schemaPath:"#/properties/screenshotTimeout/type",keyword:"type",params:{type: "number"},message:"must be number"};
 if(vErrors === null){
 vErrors = [err31];
 }
@@ -680,19 +682,55 @@ errors++;
 if(coerced11 !== undefined){
 data15 = coerced11;
 if(data !== undefined){
-data["maxAnimationFrames"] = coerced11;
+data["screenshotTimeout"] = coerced11;
 }
 }
 }
 }
+if(data.maxAnimationFrames !== undefined){
+let data16 = data.maxAnimationFrames;
+if(!(typeof data16 == "number")){
+let dataType12 = typeof data16;
+let coerced12 = undefined;
+if(dataType12 == 'object' && Array.isArray(data16) && data16.length == 1){
+data16 = data16[0];
+dataType12 = typeof data16;
+if(typeof data16 == "number"){
+coerced12 = data16;
+}
+}
+if(!(coerced12 !== undefined)){
+if(dataType12 == "boolean" || data16 === null
+              || (dataType12 == "string" && data16 && data16 == +data16)){
+coerced12 = +data16;
 }
 else {
-const err32 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err32 = {instancePath:instancePath+"/maxAnimationFrames",schemaPath:"#/properties/maxAnimationFrames/type",keyword:"type",params:{type: "number"},message:"must be number"};
 if(vErrors === null){
 vErrors = [err32];
 }
 else {
 vErrors.push(err32);
+}
+errors++;
+}
+}
+if(coerced12 !== undefined){
+data16 = coerced12;
+if(data !== undefined){
+data["maxAnimationFrames"] = coerced12;
+}
+}
+}
+}
+}
+else {
+const err33 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err33];
+}
+else {
+vErrors.push(err33);
 }
 errors++;
 }

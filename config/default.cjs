@@ -2,6 +2,7 @@ module.exports = {
   port: 8080,
   // privateDirectoryUrl: 'http://simple-directory:8080',
   onlySameHost: true, // better as we use chrome without sandboxing
+  useHostHeader: false, // defaults to using x-forwarded-host as other services of data-fair stack
   helmet: {
     active: true
   },

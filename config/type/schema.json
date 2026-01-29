@@ -76,6 +76,9 @@
     "onlySameHost": {
       "type": "boolean"
     },
+    "useHostHeader": {
+      "type": "boolean"
+    },
     "screenshotTimeout": {
       "type": "number"
     },

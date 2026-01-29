@@ -21,7 +21,7 @@ async function auth (req: Request, res: Response, next: NextFunction) {
 
   let securedSameHost = false
   if (config.onlySameHost) {
-    const captureHost = reqHost(req)
+    const captureHost = config.useHostHeader ? req.get('host') : reqHost(req)
     try {
       securedSameHost = new URL(target).host === captureHost
     } catch (err: any) {
