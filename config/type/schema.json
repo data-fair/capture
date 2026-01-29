@@ -11,9 +11,9 @@
   "title": "Api config",
   "additionalProperties": false,
   "required": [
-    "privateDirectoryUrl",
     "port",
     "secretKeys",
+    "helmet",
     "observer",
     "puppeteerLaunchOptions",
     "concurrency",
@@ -29,6 +29,16 @@
     "privateDirectoryUrl": {
       "type": "string",
       "pattern": "^https?://"
+    },
+    "helmet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active"],
+      "properties": {
+        "active": {
+          "type": "boolean"
+        }
+      }
     },
     "secretKeys": {
       "type": "object",

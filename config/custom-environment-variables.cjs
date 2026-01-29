@@ -2,6 +2,9 @@ module.exports = {
   port: 'PORT',
   privateDirectoryUrl: 'PRIVATE_DIRECTORY_URL',
   onlySameHost: 'ONLY_SAME_HOST',
+  helmet: {
+    active: 'HELMET_ACTIVE'
+  },
   screenshotTimeout: 'SCREENSHOT_TIMEOUT',
   concurrency: 'CONCURRENCY',
   defaultLang: 'DEFAULT_LANG',

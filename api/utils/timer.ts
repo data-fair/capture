@@ -22,7 +22,7 @@ export class Timer {
   }
 
   finish () {
-    debug(`${name}, type=${this.type}, ${Object.keys(this.times).map(step => (step + '=' + (Math.round(this.times[step] / 10) / 1000))).join(', ')}`)
+    debug(`${this.name}, type=${this.type}, ${Object.keys(this.times).map(step => (step + '=' + (Math.round(this.times[step] / 10) / 1000))).join(', ')}`)
     for (const step in this.times) {
       metrics.tasks.labels({ step, type: this.type }).observe(this.times[step] / 1000)
     }

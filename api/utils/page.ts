@@ -94,7 +94,6 @@ async function openInPage (
   cookies: CookieData[],
   viewport: Viewport | undefined,
   animate: boolean,
-  captureHost: string,
   timer: Timer
 ): Promise<OpenPageResult> {
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
@@ -108,7 +107,7 @@ async function openInPage (
     if (!frameUrl) continue
     let sameHost = false
     try {
-      sameHost = new URL(frameUrl).host === captureHost
+      sameHost = new URL(frameUrl).host === new URL(target).host
     } catch (err) {
       throw httpError(400, 'IFrame with invalid URL :' + frameUrl)
     }
@@ -135,7 +134,6 @@ export const withPage = async (
   cookies: CookieData[],
   viewport: Viewport | undefined,
   animate: boolean,
-  captureHost: string,
   timer: Timer,
   callbackTimeoutMsg: string,
   callback: (result: OpenPageResult) => Promise<void>) => {
@@ -166,7 +164,7 @@ export const withPage = async (
     timer.step('newPage')
 
     const result = await promiseTimeout(
-      openInPage(page, target, lang, timezone, cookies, viewport, animate, captureHost, timer),
+      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer),
       config.screenshotTimeout * 2,
       `Failed to open "${target}" in context before timeout`
     )

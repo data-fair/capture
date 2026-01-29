@@ -3,28 +3,31 @@ import express from 'express'
 import helmet from 'helmet'
 import apiDocs from '../contract/api-docs.ts'
 import { router } from './routers/capture.ts'
+import config from '#config'
 
 const app = express()
 export default app
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    useDefaults: false,
-    directives: {
+if (config.helmet.active) {
+  app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
       // very restrictive by default, index.html of the UI will have custom rules defined in createSpaMiddleware
       // https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#security-headers
-      'frame-ancestors': ["'none'"],
-      'default-src': ["'none'"]
+        'frame-ancestors': ["'none'"],
+        'default-src': ["'none'"]
+      }
     }
-  }
-}))
+  }))
+}
 
 // no fancy embedded arrays, just string and arrays of strings in req.query
 app.set('query parser', 'simple')
 app.use(express.json())
 
 app.use(createSiteMiddleware('capture', { prefixOptional: true }))
-app.use(session.middleware())
+if (config.privateDirectoryUrl) app.use(session.middleware())
 
 app.use('/api/v1', router)
 app.get('/api/v1/api-docs.json', (req, res, next) => res.send(apiDocs))

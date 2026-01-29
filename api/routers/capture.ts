@@ -13,25 +13,27 @@ const debug = debugModule('capture')
 export const router = express.Router()
 
 async function auth (req: Request, res: Response, next: NextFunction) {
-  const { user } = reqSession(req)
+  const user = config.privateDirectoryUrl && reqSession(req).user
   if (!user && req.query.key !== config.secretKeys.capture) return res.status(401).send()
 
   const target = req.query.target
   if (typeof target !== 'string') return res.status(400).send('parameter "target" is required')
 
-  let sameHost
-  const captureHost = reqHost(req)
-  try {
-    sameHost = new URL(target).host === captureHost
-  } catch (err: any) {
-    return res.status(400).send('Failed to parse url ' + err.message)
-  }
-  if (!sameHost && config.onlySameHost) {
-    debug(`[${target}] NOT on same host as capture service (${captureHost}), reject`)
-    return res.status(400).send('Only same host targets are accepted')
+  let securedSameHost = false
+  if (config.onlySameHost) {
+    const captureHost = reqHost(req)
+    try {
+      securedSameHost = new URL(target).host === captureHost
+    } catch (err: any) {
+      return res.status(400).send('Failed to parse url ' + err.message)
+    }
+    if (!securedSameHost) {
+      debug(`[${target}] NOT on same host as capture service (${captureHost}), reject`)
+      return res.status(400).send('Only same host targets are accepted')
+    }
   }
 
-  if (sameHost && req.cookies && Object.keys(req.cookies).length && req.query.cookies !== 'false') {
+  if (securedSameHost && req.cookies && Object.keys(req.cookies).length && req.query.cookies !== 'false') {
     debug(`[${target}] transmit cookies`)
     req.cookies = Object.keys(req.cookies).map(name => ({ name, value: req.cookies[name], url: target }))
   } else {
@@ -77,7 +79,6 @@ router.get('/screenshot', auth, async (req, res, next) => {
     req.cookies,
     { width, height },
     type === 'gif',
-    reqHost(req),
     timer,
     `Failed to take screenshot of page "${target}" before timeout`,
     async ({ page, animationActivated }) => {
@@ -130,7 +131,6 @@ router.get('/print', auth, async (req, res, next) => {
     req.cookies,
     undefined,
     false,
-    reqHost(req),
     timer,
     `Failed to make ${type} print of page "${target}" before timeout`,
     async ({ page }) => {

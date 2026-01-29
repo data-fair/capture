@@ -19,7 +19,7 @@ server.headersTimeout = (60 * 1000) + 2000
 export const start = async () => {
   await pageUtils.start()
   if (config.observer.active) await startObserver(config.observer.port)
-  session.init(config.privateDirectoryUrl)
+  if (config.privateDirectoryUrl) session.init(config.privateDirectoryUrl)
   server.listen(config.port)
   await eventPromise(server, 'listening')
 
