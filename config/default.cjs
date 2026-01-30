@@ -1,13 +1,13 @@
 module.exports = {
-  port: 5607,
-  publicUrl: 'http://localhost:5607',
-  directoryUrl: null,
-  sessionDomain: null,
-  onlySameHost: false,
-  trustHeaderHost: false, // when applying onlySameHost policy we will trust req.headers.host instead of relying on config.publicUrl
+  port: 8080,
+  // privateDirectoryUrl: 'http://simple-directory:8080',
+  onlySameHost: true, // better as we use chrome without sandboxing
+  useHostHeader: false, // defaults to using x-forwarded-host as other services of data-fair stack
+  helmet: {
+    active: true
+  },
   screenshotTimeout: 20000,
   concurrency: 5,
-  concurrencyPublic: null,
   defaultLang: 'fr-FR',
   defaultTimezone: 'Europe/Paris',
   secretKeys: {
@@ -15,12 +15,12 @@ module.exports = {
   },
   maxAnimationFrames: 1800, // 2 minutes at 15fps
   puppeteerLaunchOptions: {
-    executablePath: 'google-chrome-stable',
+    executablePath: '/usr/bin/google-chrome-stable',
     // args: ['--use-gl=egl', '--use-angle=swiftshader', '--in-process-gpu'],
     args: [],
     headless: 'new'
   },
-  prometheus: {
+  observer: {
     active: true,
     port: 9090
   }

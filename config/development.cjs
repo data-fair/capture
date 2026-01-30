@@ -1,10 +1,15 @@
 module.exports = {
+  port: 5607,
   // directoryUrl: 'http://localhost:5990/simple-directory',
+  onlySameHost: false,
   concurrency: 2,
   secretKeys: {
     capture: 'capture'
   },
-  prometheus: {
+  observer: {
     active: false
-  }
+  },
+  helmet: {
+    active: false
+  },
 }

@@ -19,7 +19,7 @@ Then start the server:
 
 Or build and run the docker image:
 
-    docker buildx build -t capture --progress plain --load . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e PORT=5607 --name capture capture
+    docker buildx build -t capture --progress plain --load . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e SECRET_CAPTURE=capture -e HELMET_ACTIVE=false -e PORT=5607 --name capture capture
 
 Check the service with these examples:
 
@@ -33,9 +33,8 @@ Check the service with these examples:
   - [animated gif screenshot](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&target=http://localhost:5607/test/resources/test-anim.html)
   - [animated gif screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test-anim.html)
   - [fallback to standard screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test1.html)
-  - [screenshot converted to jpg](http://localhost:5607/api/v1/screenshot?key=capture&type=jpg&target=http://localhost:5607/test/resources/test-anim.html)
-  - [screenshot with custom jpg filename](http://localhost:5607/api/v1/screenshot?key=capture&filename=test.jpg&target=http://localhost:5607/test/resources/test-anim.html)
-  - [remote url with a webgl based map](http://localhost:5607/api/v1/print?key=capture&target=https://staging-koumoul.com/cadastre/parcel?id=56251000AV0142)
+  - [remote url with a webgl based map](http://localhost:5617/api/v1/print?key=capture&target=https://staging-koumoul.com/cadastre/parcel?id=56251000AV0142)
+
 ## Security
 
 Consider reading this article https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image

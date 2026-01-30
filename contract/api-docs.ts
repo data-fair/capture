@@ -1,4 +1,4 @@
-const config = require('config')
+import config from '#config'
 
 const commonParams = [
   {
@@ -42,7 +42,7 @@ const commonParams = [
   }
 ]
 
-module.exports = {
+export default {
   openapi: '3.0.0',
   info: {
     title: 'Capture',
@@ -56,7 +56,7 @@ module.exports = {
     version: '1.0.0'
   },
   servers: [{
-    url: config.publicUrl + '/api/v1',
+    url: '/capture/api/v1',
     description: process.env.NODE_ENV
   }],
   components: {

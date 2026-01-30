@@ -1,4 +1,4 @@
-exports.footer = (text) => `
+export const footer = (text: string) => `
   <div style="font-size:10px;width:100%;margin-top:10px;margin-left:1.5cm;margin-right:1.5cm;">
     <div style="float:left;">
       <span>${text || ''}</span>
