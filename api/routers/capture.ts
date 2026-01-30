@@ -53,7 +53,7 @@ async function auth (req: Request, res: Response, next: NextFunction) {
     req.cookies = Object.keys(req.cookies).map(name => ({ name, value: req.cookies[name], url: target }))
   } else {
     debug(`[${target}] do not transmit cookies`)
-    req.cookies = {}
+    req.cookies = []
   }
   next()
 }
