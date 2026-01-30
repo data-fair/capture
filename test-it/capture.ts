@@ -1,5 +1,4 @@
 import assert from 'assert/strict'
-import config from '../api/config.ts'
 import { PDFParse } from 'pdf-parse'
 import { Jimp } from 'jimp'
 import * as server from '../api/server.ts'
