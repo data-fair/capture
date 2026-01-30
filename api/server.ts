@@ -19,7 +19,12 @@ server.headersTimeout = (60 * 1000) + 2000
 export const start = async () => {
   await pageUtils.start()
   if (config.observer.active) await startObserver(config.observer.port)
-  if (config.privateDirectoryUrl) session.init(config.privateDirectoryUrl)
+  if (config.privateDirectoryUrl) {
+    console.log('Configure with Simple Directory authentication')
+    session.init(config.privateDirectoryUrl)
+  } else {
+    console.log('Configure without authentication, this instance of @data-fair/capture should not be exposed publicly')
+  }
   server.listen(config.port)
   await eventPromise(server, 'listening')
 

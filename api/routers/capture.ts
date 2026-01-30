@@ -5,7 +5,7 @@ import * as pageUtils from '../utils/page.ts'
 import * as animationUtils from '../utils/animation.ts'
 import { createTimer } from '../utils/timer.ts'
 import config from '#config'
-import { httpError, reqHost, reqSession } from '@data-fair/lib-express'
+import { assertReqInternalSecret, httpError, reqHost, reqSession } from '@data-fair/lib-express'
 import type { PaperFormat, PDFOptions } from 'puppeteer'
 
 const debug = debugModule('capture')
@@ -13,8 +13,12 @@ const debug = debugModule('capture')
 export const router = express.Router()
 
 async function auth (req: Request, res: Response, next: NextFunction) {
-  const user = config.privateDirectoryUrl && reqSession(req).user
-  if (!user && req.query.key !== config.secretKeys.capture) return res.status(401).send()
+  if (config.privateDirectoryUrl) {
+    const user = reqSession(req).user
+    if (!user) assertReqInternalSecret(req, config.secretKeys.capture)
+  } else {
+    if (config.secretKeys.capture) assertReqInternalSecret(req, config.secretKeys.capture)
+  }
 
   const target = req.query.target
   if (typeof target !== 'string') return res.status(400).send('parameter "target" is required')
@@ -38,7 +42,7 @@ async function auth (req: Request, res: Response, next: NextFunction) {
     req.cookies = Object.keys(req.cookies).map(name => ({ name, value: req.cookies[name], url: target }))
   } else {
     debug(`[${target}] do not transmit cookies`)
-    delete req.cookies
+    req.cookies = {}
   }
   next()
 }
