@@ -5,7 +5,7 @@ import * as pageUtils from '../utils/page.ts'
 import * as animationUtils from '../utils/animation.ts'
 import { createTimer } from '../utils/timer.ts'
 import config from '#config'
-import { assertReqInternalSecret, httpError, reqHost, reqSession } from '@data-fair/lib-express'
+import { assertReqInternalSecret, httpError, reqHost, reqIsInternal, reqSession } from '@data-fair/lib-express'
 import type { PaperFormat, PDFOptions } from 'puppeteer'
 
 const debug = debugModule('capture')
@@ -24,15 +24,26 @@ async function auth (req: Request, res: Response, next: NextFunction) {
   if (typeof target !== 'string') return res.status(400).send('parameter "target" is required')
 
   let securedSameHost = false
+
   if (config.onlySameHost) {
-    const captureHost = config.useHostHeader ? req.get('host') : reqHost(req)
+    let targetHost
     try {
-      securedSameHost = new URL(target).host === captureHost
+      targetHost = new URL(target).host
     } catch (err: any) {
-      return res.status(400).send('Failed to parse url ' + err.message)
+      return res.status(400).send('Failed to parse target url ' + err.message)
     }
+
+    // this provides compatibility with old mode where onlySameHost was compared to a single "publicUrl"
+    // now we prefer using x-forwarded-host for multi-domain usage
+    if (config.publicUrl && reqIsInternal(req)) {
+      securedSameHost = targetHost === new URL(config.publicUrl).host
+    } else {
+      const captureHost = config.useHostHeader ? req.get('host') : reqHost(req)
+      securedSameHost = targetHost === captureHost
+    }
+
     if (!securedSameHost) {
-      debug(`[${target}] NOT on same host as capture service (${captureHost}), reject`)
+      debug(`[${target}] NOT on same host as capture service, reject`)
       return res.status(400).send('Only same host targets are accepted')
     }
   }

@@ -26,6 +26,9 @@
     "port": {
       "type": "number"
     },
+    "publicUrl": {
+      "type": "string"
+    },
     "privateDirectoryUrl": {
       "type": "string",
       "pattern": "^https?://"

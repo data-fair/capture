@@ -4,6 +4,7 @@ export const schemaExports: string[]
 // see https://github.com/bcherny/json-schema-to-typescript/issues/439 if some types are not exported
 export type ApiConfig = {
   port: number;
+  publicUrl?: string;
   privateDirectoryUrl?: string;
   helmet: {
     active: boolean;
