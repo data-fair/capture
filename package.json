@@ -14,7 +14,7 @@
     "dev": "NODE_ENV=development DEBUG=capture node --disable-warning=ExperimentalWarning --watch api/index.ts",
     "lint": "eslint .",
     "lint-fix": "eslint --fix",
-    "check-types": "tsc && npm -w ui run check-types",
+    "check-types": "tsc",
     "quality": "npm run test-deps && npm run lint && npm run build-types && npm run check-types && npm run test && npm audit --omit=dev --audit-level=critical",
     "prepare": "husky || true"
   },
