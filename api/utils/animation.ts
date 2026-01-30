@@ -12,7 +12,7 @@ import { type Page } from 'puppeteer'
 const pipeline = promisify(stream.pipeline)
 const getPixels = promisify(getPixelsCb)
 
-export const capture = async (target: string, page: Page, width: number, height: number, res) => {
+export const capture = async (target: string, page: Page, width: number, height: number) => {
   let stopped = false
   const gif = new GifEncoder(width, height)
   gif.setFrameRate(15) // 15fps seams like a good compromise for a gif

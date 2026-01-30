@@ -100,7 +100,7 @@ router.get('/screenshot', auth, async (req, res, next) => {
       debug(`[${target}] page is opened`)
       if (animationActivated) {
         debug(`take gif screenshot ${target}`)
-        const buffer = await animationUtils.capture(target, page, width, height, res)
+        const buffer = await animationUtils.capture(target, page, width, height)
         timer.step('capture-animation')
         timer.type = 'gif'
         res.type('gif')
