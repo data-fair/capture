@@ -14,6 +14,13 @@ module.exports = {
   secretKeys: {
     capture: 'SECRET_CAPTURE'
   },
+  observer: {
+    active: {
+      __name: 'OBSERVER_ACTIVE',
+      __format: 'json'
+    },
+    port: 'OBSERVER_PORT'
+  },
   puppeteerLaunchOptions: {
     args: {
       __name: 'PUPPETEER_ARGS',
