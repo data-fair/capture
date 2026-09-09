@@ -25,10 +25,10 @@ RUN apt-get update && \
     apt-get install -y google-chrome-stable gifsicle fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-khmeros fonts-kacst-one fonts-freefont-ttf libxss1 dbus dbus-x11 --no-install-recommends && \
     service dbus start
 
-ENV DBUS_SESSION_BUS_ADDRESS autolaunch:
+ENV DBUS_SESSION_BUS_ADDRESS=autolaunch:
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
-ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_$TARGETARCH /usr/local/bin/dumb-init
+ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_$TARGETARCH /usr/local/bin/dumb-init
 RUN chmod +x /usr/local/bin/dumb-init
 
 # cleanup
@@ -36,7 +36,7 @@ RUN apt-get clean
 RUN apt-get purge -y --auto-remove gnupg apt-transport-https
 
 # skip the browser download when installing puppeteer
-ENV PUPPETEER_SKIP_DOWNLOAD true
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 ######################################
 # Stage: nodejs dependencies and build
@@ -48,7 +48,7 @@ ADD package-lock.json .
 # use clean-modules on the same line as npm ci to be lighter in the cache
 RUN npm i -g clean-modules@2.0.6
 RUN npm ci --omit=dev &&\
-    clean-modules --yes --exclude exceljs/lib/doc/ --exclude "**/*.mustache"
+    clean-modules --yes --exclude "**/*.mustache"
 
 ##################################
 # Stage: main nodejs service stage

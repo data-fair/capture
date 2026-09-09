@@ -22,7 +22,7 @@
     "#config": "./api/config.ts"
   },
   "engines": {
-    "node": "v20"
+    "node": ">=24"
   },
   "repository": {
     "type": "git",
