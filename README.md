@@ -6,7 +6,7 @@ Ased as a companion service for [data-fair](https://koumoul-dev.github.io/data-f
 
 ## Developper
 
-To run locally you will need to install google-chrome-unstable for your system.
+To run locally you will need to install google-chrome-unstable and gifsicle for your system.
 
 Install dependencies without downloading chromium:
 
