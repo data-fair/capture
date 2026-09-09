@@ -5,6 +5,7 @@ import eventPromise from '@data-fair/lib-utils/event-promise.js'
 import { createHttpTerminator } from 'http-terminator'
 import app from './app.ts'
 import * as pageUtils from './utils/page.ts'
+import * as gifsicle from './utils/gifsicle.ts'
 import config from '#config'
 
 const server = createServer(app)
@@ -17,6 +18,7 @@ server.keepAliveTimeout = (60 * 1000) + 1000
 server.headersTimeout = (60 * 1000) + 2000
 
 export const start = async () => {
+  await gifsicle.start()
   await pageUtils.start()
   if (config.observer.active) await startObserver(config.observer.port)
   if (config.privateDirectoryUrl) {
