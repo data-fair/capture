@@ -28,8 +28,14 @@ RUN apt-get update && \
 ENV DBUS_SESSION_BUS_ADDRESS=autolaunch:
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
-ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_$TARGETARCH /usr/local/bin/dumb-init
-RUN chmod +x /usr/local/bin/dumb-init
+# releases since 1.2.3 name the binaries by uname -m, not by docker's TARGETARCH
+RUN case "$TARGETARCH" in \
+      amd64) DUMB_INIT_ARCH=x86_64 ;; \
+      arm64) DUMB_INIT_ARCH=aarch64 ;; \
+      *) echo "unsupported architecture $TARGETARCH" && exit 1 ;; \
+    esac && \
+    wget -q -O /usr/local/bin/dumb-init "https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_$DUMB_INIT_ARCH" && \
+    chmod +x /usr/local/bin/dumb-init
 
 # cleanup
 RUN apt-get clean
