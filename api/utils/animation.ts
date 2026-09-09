@@ -5,7 +5,7 @@ import { promisify } from 'util'
 import stream from 'stream'
 import GifEncoder from 'gif-encoder'
 import getPixelsCb from 'get-pixels'
-import imageminGifsicle from 'imagemin-gifsicle'
+import { optimizeGif } from './gifsicle.ts'
 import debug from 'debug'
 import { type Page } from 'puppeteer'
 
@@ -27,13 +27,16 @@ export const capture = async (target: string, page: Page, width: number, height:
       // @ts-ignore
       return window.animateCaptureFrame()
     })
-    let buffer
+    let buffer: Uint8Array | undefined
     await Promise.race([
       page.screenshot().then(b => { buffer = b }),
       new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
     ])
     if (!buffer) throw new Error(`Failed to capture animation frame of page "${target}" before timeout`)
-    const pixels = await getPixels(buffer, 'image/png')
+    // puppeteer returns a plain Uint8Array, but get-pixels switches on Buffer.isBuffer to tell
+    // raw image data from a file path, and would treat the frame as a filename otherwise
+    const frame = Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+    const pixels = await getPixels(frame, 'image/png')
     gif.addFrame(pixels.data)
   }
   gif.finish()
@@ -41,6 +44,5 @@ export const capture = async (target: string, page: Page, width: number, height:
   debug(`[${target}] gif screenshot is taken`)
   const rawBuffer = await fs.promises.readFile(path)
   cleanup()
-  const compressedBuffer = await imageminGifsicle({ optimizationLevel: 2 })(rawBuffer)
-  return compressedBuffer
+  return await optimizeGif(rawBuffer, 2)
 }

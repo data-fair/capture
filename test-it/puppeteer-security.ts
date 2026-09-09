@@ -1,9 +1,9 @@
 import assert from 'assert/strict'
 import config from '../api/config.ts'
-import puppeteer from 'puppeteer'
+import puppeteer, { type Page, type Browser } from 'puppeteer'
 import { describe, before, after, it } from 'node:test'
 
-const getCookies = async (page: puppeteer.Page) => {
+const getCookies = async (page: Page) => {
   const array = await page.cookies()
   const cookies: Record<string, string> = {}
   for (const cookie of array) {
@@ -13,7 +13,7 @@ const getCookies = async (page: puppeteer.Page) => {
 }
 
 describe('puppeteer security', () => {
-  let browser: puppeteer.Browser
+  let browser: Browser
   before(async () => {
     browser = await puppeteer.launch(config.puppeteerLaunchOptions)
   })
