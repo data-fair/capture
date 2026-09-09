@@ -17,11 +17,12 @@ RUN echo "Building for architecture $TARGETARCH"
 
 # Install chrome and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
 RUN apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y wget gnupg ca-certificates && \
     wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg && \
     sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] https://dl-ssl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \
     apt-get update && \
-    apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-khmeros fonts-kacst-one fonts-freefont-ttf libxss1 dbus dbus-x11 --no-install-recommends && \
+    apt-get install -y google-chrome-stable gifsicle fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-khmeros fonts-kacst-one fonts-freefont-ttf libxss1 dbus dbus-x11 --no-install-recommends && \
     service dbus start
 
 ENV DBUS_SESSION_BUS_ADDRESS autolaunch:
@@ -55,6 +56,10 @@ FROM nativedeps
 LABEL org.opencontainers.image.vendor="Koumoul"
 LABEL org.opencontainers.image.authors="contact@koumoul.com"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
+
+# npm and corepack are only needed by the builder stage, and they carry their own
+# vulnerabilities; the service runs with plain node.
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 # Add user so we don't need --no-sandbox.
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
