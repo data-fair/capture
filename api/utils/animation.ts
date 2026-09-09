@@ -1,15 +1,14 @@
 import { file } from 'tmp-promise'
 import config from '#config'
-import fs from 'fs'
-import { promisify } from 'util'
-import stream from 'stream'
+import fs from 'node:fs'
+import { promisify } from 'node:util'
+import { pipeline } from 'node:stream/promises'
 import GifEncoder from 'gif-encoder'
 import getPixelsCb from 'get-pixels'
 import { optimizeGif } from './gifsicle.ts'
 import debug from 'debug'
 import { type Page } from 'puppeteer'
 
-const pipeline = promisify(stream.pipeline)
 const getPixels = promisify(getPixelsCb)
 
 export const capture = async (target: string, page: Page, width: number, height: number) => {
@@ -29,7 +28,8 @@ export const capture = async (target: string, page: Page, width: number, height:
     })
     let buffer: Uint8Array | undefined
     await Promise.race([
-      page.screenshot().then(b => { buffer = b }),
+      // frames are decoded to raw pixels right away, so spending time on png compression is wasted
+      page.screenshot({ optimizeForSpeed: true }).then(b => { buffer = b }),
       new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
     ])
     if (!buffer) throw new Error(`Failed to capture animation frame of page "${target}" before timeout`)
