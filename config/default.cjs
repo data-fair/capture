@@ -18,7 +18,7 @@ module.exports = {
     executablePath: '/usr/bin/google-chrome-stable',
     // args: ['--use-gl=egl', '--use-angle=swiftshader', '--in-process-gpu'],
     args: [],
-    headless: 'new'
+    headless: true
   },
   observer: {
     active: true,

@@ -183,10 +183,11 @@ export const withPage = async (
 
 const cleanContext = async (page: Page) => {
   // always empty cookies to prevent inheriting them in next use of the context
-  const cookies = await page.browserContext().cookies()
-  for (const cookie of cookies) {
-    await page.browserContext().deleteCookie(cookie)
-  }
+  const context = page.browserContext()
+  const cookies = await context.cookies()
+  // deleting them in a single call spares one CDP round trip per cookie, and this
+  // runs inside a 2s timeout that a session's worth of cookies could otherwise eat
+  if (cookies.length) await context.deleteCookie(...cookies)
   await page.close()
 }
 
