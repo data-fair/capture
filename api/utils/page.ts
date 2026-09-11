@@ -136,7 +136,8 @@ export const withPage = async (
   animate: boolean,
   timer: Timer,
   callbackTimeoutMsg: string,
-  callback: (result: OpenPageResult) => Promise<void>) => {
+  callback: (result: OpenPageResult) => Promise<void>,
+  callbackTimeoutMs?: number) => {
   if (target.includes('capture-test-error=true')) {
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
@@ -172,7 +173,9 @@ export const withPage = async (
     openSuccess = true
     await promiseTimeout(
       callback(result),
-      result.animationActivated ? config.screenshotTimeout * 2 : config.screenshotTimeout,
+      // the callback can impose its own timeout, for example a time-lapse capture
+      // needs to cover its full recording duration
+      callbackTimeoutMs ?? (result.animationActivated ? config.screenshotTimeout * 2 : config.screenshotTimeout),
       callbackTimeoutMsg
     )
   } finally {

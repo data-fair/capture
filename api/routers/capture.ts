@@ -87,18 +87,38 @@ router.get('/screenshot', auth, async (req, res, next) => {
   if (width > 3000) return res.status(400).send('width too large')
   if (height > 3000) return res.status(400).send('height too large')
 
+  // time-lapse mode: take a frame every frameInterval seconds of real time during duration seconds
+  let timelapse: { frameInterval: number, duration: number } | undefined
+  if (req.query.frameInterval !== undefined || req.query.duration !== undefined) {
+    const frameInterval = typeof req.query.frameInterval === 'string' ? parseFloat(req.query.frameInterval) : NaN
+    const duration = typeof req.query.duration === 'string' ? parseFloat(req.query.duration) : NaN
+    if (!Number.isFinite(frameInterval) || frameInterval <= 0) return res.status(400).send('invalid frameInterval parameter, a positive number of seconds is required')
+    if (!Number.isFinite(duration) || duration <= frameInterval) return res.status(400).send('invalid duration parameter, a number of seconds greater than frameInterval is required')
+    if (config.maxTimelapseDuration && duration > config.maxTimelapseDuration) return res.status(400).send(`duration too large, the maximum is ${config.maxTimelapseDuration} seconds`)
+    timelapse = { frameInterval, duration }
+    type = 'gif'
+  }
+
   await pageUtils.withPage(
     target,
     lang,
     timezone,
     req.cookies,
     { width, height },
-    type === 'gif',
+    type === 'gif' && !timelapse,
     timer,
     `Failed to take screenshot of page "${target}" before timeout`,
     async ({ page, animationActivated }) => {
       debug(`[${target}] page is opened`)
-      if (animationActivated) {
+      if (timelapse) {
+        debug(`take timelapse gif screenshot ${target}`)
+        const buffer = await animationUtils.captureTimelapse(target, page, width, height, timelapse.frameInterval, timelapse.duration)
+        timer.step('capture-timelapse')
+        timer.type = 'gif'
+        res.type('gif')
+        if (typeof req.query.filename === 'string') res.attachment(req.query.filename.replace('.png', '.gif'))
+        res.send(buffer)
+      } else if (animationActivated) {
         debug(`take gif screenshot ${target}`)
         const buffer = await animationUtils.capture(target, page, width, height)
         timer.step('capture-animation')
@@ -118,7 +138,10 @@ router.get('/screenshot', auth, async (req, res, next) => {
           res.send(buffer)
         }
       }
-    }
+    },
+    // a time-lapse capture needs a timeout that covers its full recording duration,
+    // each frame is already bounded by screenshotTimeout, plus a margin for the gif encoding
+    timelapse && timelapse.duration * 1000 + Math.min(Math.ceil(timelapse.duration / timelapse.frameInterval), config.maxAnimationFrames) * config.screenshotTimeout + 1000
   )
   timer.finish()
 })

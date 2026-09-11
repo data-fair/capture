@@ -4,7 +4,7 @@
 "use strict";
 export const validate = validate14;
 export default validate14;
-const schema16 = {"$id":"https://github.com/data-fair/events/api/config","x-exports":["types","validate"],"x-ajv":{"coerceTypes":"array"},"type":"object","title":"Api config","additionalProperties":false,"required":["port","secretKeys","helmet","observer","puppeteerLaunchOptions","concurrency","defaultLang","defaultTimezone","screenshotTimeout","maxAnimationFrames"],"properties":{"port":{"type":"number"},"publicUrl":{"type":"string"},"privateDirectoryUrl":{"type":"string","pattern":"^https?://"},"helmet":{"type":"object","additionalProperties":false,"required":["active"],"properties":{"active":{"type":"boolean"}}},"secretKeys":{"type":"object","additionalProperties":false,"required":["capture"],"properties":{"capture":{"type":"string"}}},"observer":{"type":"object","properties":{"active":{"type":"boolean"},"port":{"type":"number"}}},"puppeteerLaunchOptions":{"type":"object"},"concurrency":{"type":"integer"},"defaultLang":{"type":"string"},"defaultTimezone":{"type":"string"},"onlySameHost":{"type":"boolean"},"useHostHeader":{"type":"boolean"},"screenshotTimeout":{"type":"number"},"maxAnimationFrames":{"type":"number"},"util":{},"get":{},"has":{}}};
+const schema16 = {"$id":"https://github.com/data-fair/events/api/config","x-exports":["types","validate"],"x-ajv":{"coerceTypes":"array"},"type":"object","title":"Api config","additionalProperties":false,"required":["port","secretKeys","helmet","observer","puppeteerLaunchOptions","concurrency","defaultLang","defaultTimezone","screenshotTimeout","maxAnimationFrames"],"properties":{"port":{"type":"number"},"publicUrl":{"type":"string"},"privateDirectoryUrl":{"type":"string","pattern":"^https?://"},"helmet":{"type":"object","additionalProperties":false,"required":["active"],"properties":{"active":{"type":"boolean"}}},"secretKeys":{"type":"object","additionalProperties":false,"required":["capture"],"properties":{"capture":{"type":"string"}}},"observer":{"type":"object","properties":{"active":{"type":"boolean"},"port":{"type":"number"}}},"puppeteerLaunchOptions":{"type":"object"},"concurrency":{"type":"integer"},"defaultLang":{"type":"string"},"defaultTimezone":{"type":"string"},"onlySameHost":{"type":"boolean"},"useHostHeader":{"type":"boolean"},"screenshotTimeout":{"type":"number"},"maxAnimationFrames":{"type":"number"},"maxTimelapseDuration":{"type":"number"},"util":{},"get":{},"has":{}}};
 const func2 = Object.prototype.hasOwnProperty;
 const pattern0 = new RegExp("^https?://", "u");
 
@@ -761,14 +761,50 @@ data["maxAnimationFrames"] = coerced13;
 }
 }
 }
+if(data.maxTimelapseDuration !== undefined){
+let data18 = data.maxTimelapseDuration;
+if(!(typeof data18 == "number")){
+let dataType14 = typeof data18;
+let coerced14 = undefined;
+if(dataType14 == 'object' && Array.isArray(data18) && data18.length == 1){
+data18 = data18[0];
+dataType14 = typeof data18;
+if(typeof data18 == "number"){
+coerced14 = data18;
+}
+}
+if(!(coerced14 !== undefined)){
+if(dataType14 == "boolean" || data18 === null
+              || (dataType14 == "string" && data18 && data18 == +data18)){
+coerced14 = +data18;
 }
 else {
-const err34 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err34 = {instancePath:instancePath+"/maxTimelapseDuration",schemaPath:"#/properties/maxTimelapseDuration/type",keyword:"type",params:{type: "number"},message:"must be number"};
 if(vErrors === null){
 vErrors = [err34];
 }
 else {
 vErrors.push(err34);
+}
+errors++;
+}
+}
+if(coerced14 !== undefined){
+data18 = coerced14;
+if(data !== undefined){
+data["maxTimelapseDuration"] = coerced14;
+}
+}
+}
+}
+}
+else {
+const err35 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err35];
+}
+else {
+vErrors.push(err35);
 }
 errors++;
 }

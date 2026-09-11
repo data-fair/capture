@@ -88,6 +88,9 @@
     "maxAnimationFrames": {
       "type": "number"
     },
+    "maxTimelapseDuration": {
+      "type": "number"
+    },
     "util": {},
     "get": {},
     "has": {}

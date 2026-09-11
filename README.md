@@ -33,6 +33,7 @@ Check the service with these examples:
   - [animated gif screenshot](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&target=http://localhost:5607/test/resources/test-anim.html)
   - [animated gif screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test-anim.html)
   - [fallback to standard screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test1.html)
+  - [timelapse gif screenshot: one frame every 2s during 4s of real time, accelerated 30 times](http://localhost:5607/api/v1/screenshot?key=capture&frameInterval=2&duration=4&target=http://localhost:5607/test/resources/test-timelapse.html)
   - [remote url with a webgl based map](http://localhost:5617/api/v1/print?key=capture&target=https://staging-koumoul.com/cadastre/parcel?id=56251000AV0142)
 
 ## Security

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="keywords" content="HTML, CSS, XML, XHTML, JavaScript">
+    <title>Test timelapse</title>
+  </head>
+  <body>
+    <h1>Test timelapse</h1>
+    <p>
+      This page's content changes by itself every 100ms, without any cooperation with capture
+    </p>
+    <p id="counter"></p>
+    <script>
+      let i = 0
+      const el = document.getElementById('counter')
+      const tick = () => {
+        el.innerHTML = 'count:' + i
+        i++
+      }
+      tick()
+      setInterval(tick, 100)
+    </script>
+  </body>
+</html>

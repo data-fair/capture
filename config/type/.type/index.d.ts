@@ -27,6 +27,7 @@ export type ApiConfig = {
   useHostHeader?: boolean;
   screenshotTimeout: number;
   maxAnimationFrames: number;
+  maxTimelapseDuration?: number;
   util?: unknown;
   get?: unknown;
   has?: unknown;

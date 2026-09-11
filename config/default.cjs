@@ -14,6 +14,7 @@ module.exports = {
     capture: null
   },
   maxAnimationFrames: 1800, // 2 minutes at 15fps
+  maxTimelapseDuration: 600, // max seconds of real time recording for a time-lapse capture
   puppeteerLaunchOptions: {
     executablePath: '/usr/bin/google-chrome-stable',
     // args: ['--use-gl=egl', '--use-angle=swiftshader', '--in-process-gpu'],

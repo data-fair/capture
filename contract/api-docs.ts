@@ -107,6 +107,24 @@ export default {
               enum: ['png', 'jpg', 'gif']
             },
             default: 'png'
+          },
+          {
+            in: 'query',
+            name: 'frameInterval',
+            description: 'Create an accelerated (time-lapse) gif capture: one frame is taken every frameInterval seconds of real time. The gif is played at 15 fps, so the animation is accelerated 15 times frameInterval. No cooperation from the page is required. Implies type=gif.',
+            required: false,
+            schema: {
+              type: 'number'
+            }
+          },
+          {
+            in: 'query',
+            name: 'duration',
+            description: 'The total duration in seconds of the real time recording of a time-lapse capture. Required along frameInterval.',
+            required: false,
+            schema: {
+              type: 'number'
+            }
           }
         ],
         responses: {

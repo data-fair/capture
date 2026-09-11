@@ -159,6 +159,26 @@ describe('capture', () => {
     assert.ok(size2 < 15000)
   })
 
+  it('make a timelapse gif screenshot of a page', async () => {
+    const res = await ax.get('screenshot', { params: { key, target: 'http://localhost:5607/test/resources/test-timelapse.html', frameInterval: 0.2, duration: 1 } })
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['content-type'], 'image/gif')
+    assert.ok(Number(res.headers['content-length']) > 0)
+
+    await assert.rejects(
+      ax.get('screenshot', { params: { key, target: 'http://localhost:5607/test/resources/test-timelapse.html', frameInterval: 0.2 } }),
+      (err: any) => err.response.status === 400 && err.response.data.includes('invalid duration')
+    )
+    await assert.rejects(
+      ax.get('screenshot', { params: { key, target: 'http://localhost:5607/test/resources/test-timelapse.html', frameInterval: 1, duration: 0.5 } }),
+      (err: any) => err.response.status === 400 && err.response.data.includes('invalid duration')
+    )
+    await assert.rejects(
+      ax.get('screenshot', { params: { key, target: 'http://localhost:5607/test/resources/test-timelapse.html', frameInterval: 1, duration: 100000 } }),
+      (err: any) => err.response.status === 400 && err.response.data.includes('duration too large')
+    )
+  })
+
   it('apply ONLY_SAME_HOST policy to iframes also', async () => {
     // config.onlySameHost = true
     await assert.rejects(
