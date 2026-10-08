@@ -1,10 +1,22 @@
-# Capture
+# <img alt="Data FAIR logo" src="https://cdn.jsdelivr.net/gh/data-fair/data-fair@master/ui/src/assets/logo.svg" width="40"> @data-fair/capture
 
-A simple service for capturing rendered Web pages using [puppeteer](https://github.com/GoogleChrome/puppeteer).
+![GitHub License](https://img.shields.io/github/license/data-fair/capture) ![GitHub package.json version](https://img.shields.io/github/package-json/v/data-fair/capture)  
+*A simple service for capturing rendered Web pages using [puppeteer](https://github.com/GoogleChrome/puppeteer).*
 
-Ased as a companion service for [data-fair](https://koumoul-dev.github.io/data-fair/).
+Part of the [Data Fair](https://datafair.cloud) ecosystem.
 
-## Developper
+## Sponsors
+
+<a href="https://koumoul.com"><img alt="Koumoul logo" src="https://cdn.jsdelivr.net/gh/data-fair/data-fair@master/docs/assets/koumoul-logo.png" height="56" align="left"></a>
+
+**[Koumoul](https://koumoul.com)** · *La donnée accessible*<br>
+Koumoul develops the Data Fair ecosystem and hosts it as an online service.
+
+<br clear="left">
+
+Click [here to support the development of this project](https://github.com/sponsors/koumoul-dev).
+
+## Developers
 
 To run locally you will need to install google-chrome-unstable and gifsicle for your system.
 
