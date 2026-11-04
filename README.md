@@ -18,22 +18,13 @@ Click [here to support the development of this project](https://github.com/spons
 
 ## Developers
 
-To run locally you will need to install google-chrome-unstable and gifsicle for your system.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the dev environment.
 
-Install dependencies without downloading chromium:
-
-    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-    npm i
-
-Then start the server:
-
-    npm run dev
-
-Or build and run the docker image:
+Build and run the docker image:
 
     docker buildx build -t capture --progress plain --load . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e SECRET_CAPTURE=capture -e HELMET_ACTIVE=false -e PORT=5607 --name capture capture
 
-Check the service with these examples:
+Check the service with these examples (in the dev environment, replace 5607 with `DEV_API_PORT` from `.env`):
 
   - [simple screenshot](http://localhost:5607/api/v1/screenshot?key=capture&target=http://localhost:5607/test/resources/test1.html)
   - [custom size](http://localhost:5607/api/v1/screenshot?key=capture&target=http://localhost:5607/test/resources/test1.html&width=200&height=150)
