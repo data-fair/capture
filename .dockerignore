@@ -1,6 +1,5 @@
-/node_modules
-/.nyc_output
-/coverage
-/data
-/.git
-/config/local*
+**/node_modules
+.env
+.git
+data
+config/local*
