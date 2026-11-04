@@ -46,7 +46,7 @@ describe('capture', () => {
 
     res = await ax.get('screenshot', { params: { key, target, filename: 'screenshot.png' } })
     assert.equal(res.status, 200)
-    assert.equal(res.headers['content-disposition'], 'attachment; filename="screenshot.png"')
+    assert.equal(res.headers['content-disposition'], 'attachment; filename=screenshot.png')
   })
 
   it('make a few prints of a page', async () => {
@@ -54,6 +54,7 @@ describe('capture', () => {
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'application/pdf')
     let content = await new PDFParse(new Uint8Array(res.data)).getText()
+    // content-disposition 2 (express 5.3) only quotes filenames that need it
     assert.ok(content.text.includes('Test page 1'))
     assert.ok(content.text.includes('["fr-FR","fr"]'))
 
@@ -152,7 +153,7 @@ describe('capture', () => {
     res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html', filename: 'test.gif' } })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/gif')
-    assert.equal(res.headers['content-disposition'], 'attachment; filename="test.gif"')
+    assert.equal(res.headers['content-disposition'], 'attachment; filename=test.gif')
 
     res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html' } })
     assert.equal(res.status, 200)
