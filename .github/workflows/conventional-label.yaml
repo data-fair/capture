@@ -1,12 +1,38 @@
 # automatic labelling of pull request based on conventional commit names in the PR titles
-# see https://github.com/marketplace/actions/conventional-release-labels
+# same rules as bcoe/conventional-release-labels@v1 (unmaintained, node12 runtime), which this replaces:
+# feat -> feature, fix -> fix, "!" -> breaking, chore -> ignore-for-release (alone)
 
 on:
   pull_request_target:
     types: [ opened, edited ]
 name: conventional-release-labels
+permissions:
+  issues: write
+  pull-requests: write
 jobs:
   label:
     runs-on: ubuntu-latest
     steps:
-      - uses: bcoe/conventional-release-labels@v1
+      # the title is untrusted input: it is passed through env, never interpolated in the script
+      - name: Label from the conventional commit type of the title
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          re='^([a-zA-Z]+)(\([^()]*\))?(!)?:'
+          if [[ ! $TITLE =~ $re ]]; then echo "not a conventional commit title, no label"; exit 0; fi
+          type=${BASH_REMATCH[1]}
+          labels=()
+          if [ -n "${BASH_REMATCH[3]}" ]; then labels+=(breaking); fi
+          case "$type" in feat) labels+=(feature) ;; fix) labels+=(fix) ;; esac
+          if [ "$type" = chore ]; then labels=(ignore-for-release); fi
+          if [ ${#labels[@]} -eq 0 ]; then echo "type $type has no label"; exit 0; fi
+          for l in feature fix breaking ignore-for-release; do
+            gh api -X DELETE "repos/$REPO/issues/$PR/labels/$l" --silent 2>/dev/null || true
+          done
+          args=()
+          for l in "${labels[@]}"; do args+=(-f "labels[]=$l"); done
+          gh api "repos/$REPO/issues/$PR/labels" "${args[@]}" --silent
+          echo "labels: ${labels[*]}"
