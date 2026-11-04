@@ -41,7 +41,7 @@
     "@data-fair/lib-node": "^2.17.1",
     "@data-fair/lib-utils": "^1.14.1",
     "@data-fair/lib-validation": "^1.0.2",
-    "config": "^4.1.1",
+    "config": "^5.0.1",
     "cookie-parser": "^1.4.7",
     "debug": "^4.4.3",
     "express": "^5.3.0",
