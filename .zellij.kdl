@@ -1,0 +1,14 @@
+// Dev environment of capture, see @data-fair/lib-dev. Agents: npx --no df-dev status | logs <pane> | restart <pane>
+layout {
+  pane split_direction="vertical" {
+    pane name="capture" borderless=true
+    // no containers: capture runs without authentication in development (no privateDirectoryUrl)
+    pane name="status" command="./node_modules/.bin/df-status"
+  }
+  pane name="api" command="bash" {
+    args "-c" "FORCE_COLOR=1 NODE_ENV=development DEBUG=capture PORT=$DEV_API_PORT exec ./node_modules/.bin/nodemon -e js,ts,cjs,json api/index.ts"
+  }
+  pane name="url" size=1 borderless=true command="bash" {
+    args "-c" "echo -n -e \"Test screenshot at \\e[1;96mhttp://localhost:$DEV_API_PORT/api/v1/screenshot?key=capture&target=http://localhost:$DEV_API_PORT/test/resources/test1.html\\e[0m\"; exec sleep infinity"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "ports": ["DEV_API_PORT", "TEST_API_PORT"],
+  "panes": {
+    "api": { "ready": "http://localhost:${DEV_API_PORT}/api/v1/api-docs.json" }
+  },
+  "url": "http://localhost:${DEV_API_PORT}/api/v1/screenshot?key=capture&target=http://localhost:${DEV_API_PORT}/test/resources/test1.html"
+}

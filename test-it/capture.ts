@@ -4,10 +4,12 @@ import { Jimp } from 'jimp'
 import * as server from '../api/server.ts'
 import axios from 'axios'
 import { describe, before, after, it } from 'node:test'
+import config from '#config'
 
-const ax = axios.create({ baseURL: 'http://localhost:5607/api/v1/' })
+const origin = `http://localhost:${config.port}`
+const ax = axios.create({ baseURL: `${origin}/api/v1/` })
 
-const target = 'http://localhost:5607/test/resources/test1.html'
+const target = origin + '/test/resources/test1.html'
 const key = 'capture'
 
 describe('capture', () => {
@@ -133,7 +135,7 @@ describe('capture', () => {
   })
 
   it('make prints of a page that is never idle', async () => {
-    const res = await ax.get('print', { params: { key, target: 'http://localhost:5607/test/resources/test-timeout.html' }, responseType: 'arraybuffer' })
+    const res = await ax.get('print', { params: { key, target: origin + '/test/resources/test-timeout.html' }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'application/pdf')
     const content = await new PDFParse(new Uint8Array(res.data)).getText()
@@ -141,18 +143,18 @@ describe('capture', () => {
   })
 
   it('make animated gif screenshot of a page', async () => {
-    let res = await ax.get('screenshot', { params: { key, target: 'http://localhost:5607/test/resources/test-anim.html', type: 'gif' } })
+    let res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html', type: 'gif' } })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/gif')
     const size1 = Number(res.headers['content-length'])
     assert.ok(size1 < 100000)
 
-    res = await ax.get('screenshot', { params: { key, target: 'http://localhost:5607/test/resources/test-anim.html', filename: 'test.gif' } })
+    res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html', filename: 'test.gif' } })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/gif')
     assert.equal(res.headers['content-disposition'], 'attachment; filename="test.gif"')
 
-    res = await ax.get('screenshot', { params: { key, target: 'http://localhost:5607/test/resources/test-anim.html' } })
+    res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html' } })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/png')
     const size2 = Number(res.headers['content-length'])
@@ -162,7 +164,7 @@ describe('capture', () => {
   it('apply ONLY_SAME_HOST policy to iframes also', async () => {
     // config.onlySameHost = true
     await assert.rejects(
-      ax.get('screenshot', { params: { key, target: 'http://localhost:5607/test/resources/test-iframe.html', type: 'pdf' } }),
+      ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-iframe.html', type: 'pdf' } }),
       (err: any) => err.response.status === 400
     )
     // config.onlySameHost = false

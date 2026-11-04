@@ -6,23 +6,20 @@
   "type": "module",
   "scripts": {
     "build-types": "df-build-types .",
-    "test-deps": "docker compose --profile test up -d --wait --quiet-pull",
+    "dev-zellij": "df-dev zellij",
     "test": "npm run test-base test-it/*.ts",
-    "test-base": "NODE_ENV=test EVENTS_LOG_LEVEL=alert node --disable-warning=ExperimentalWarning --test-force-exit --test-concurrency=1 --test",
-    "dev-deps": "docker compose --profile dev up -d --wait --quiet-pull",
-    "stop-dev-deps": "docker compose --profile dev stop",
-    "dev": "NODE_ENV=development DEBUG=capture node --disable-warning=ExperimentalWarning --watch api/index.ts",
+    "test-base": "NODE_ENV=test EVENTS_LOG_LEVEL=alert node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --test-force-exit --test-concurrency=1 --test",
     "lint": "eslint .",
-    "lint-fix": "eslint --fix",
+    "lint-fix": "eslint --fix .",
     "check-types": "tsc",
-    "quality": "npm run test-deps && npm run lint && npm run build-types && npm run check-types && npm run test && npm audit --omit=dev --audit-level=critical",
+    "quality": "npm run lint && npm run build-types && npm run check-types && npm run test && npm audit --omit=dev --audit-level=critical",
     "prepare": "husky || true"
   },
   "imports": {
     "#config": "./api/config.ts"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=24.22.1"
   },
   "repository": {
     "type": "git",
@@ -55,20 +52,24 @@
     "tmp-promise": "^3.0.3"
   },
   "devDependencies": {
-    "@commitlint/config-conventional": "^20.4.0",
-    "@data-fair/lib-types-builder": "^1.11.3",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@data-fair/lib-dev": "^0.1.0",
+    "@data-fair/lib-types-builder": "^1.14.6",
+    "@data-fair/lib-utils": "^1.14.1",
     "@types/config": "^3.3.5",
     "@types/cookie-parser": "^1.4.10",
     "@types/debug": "^4.1.12",
     "@types/express": "^5.0.6",
     "@types/get-pixels": "^3.3.4",
     "@types/gif-encoder": "^0.7.4",
-    "commitlint": "^20.4.0",
-    "eslint": "^9.39.2",
+    "@types/node": "^24.19.2",
+    "eslint": "^10.14.0",
     "husky": "^9.1.7",
     "jimp": "^1.6.0",
-    "neostandard": "^0.12.2",
+    "neostandard": "^0.14.1",
+    "nodemon": "^3.1.14",
     "pdf-parse": "^2.4.5",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   }
 }
