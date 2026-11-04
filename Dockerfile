@@ -37,7 +37,7 @@ RUN case "$TARGETARCH" in \
     wget -q -O /usr/local/bin/dumb-init "https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_$DUMB_INIT_ARCH" && \
     chmod +x /usr/local/bin/dumb-init
 
-# cleanup
+# cleanup (wget stays: google-chrome-stable depends on it, purging it removes chrome)
 RUN apt-get clean
 RUN apt-get purge -y --auto-remove gnupg apt-transport-https
 

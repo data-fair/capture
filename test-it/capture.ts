@@ -1,10 +1,18 @@
 import assert from 'assert/strict'
 import { PDFParse } from 'pdf-parse'
-import { Jimp } from 'jimp'
+import { promisify } from 'node:util'
+import getPixelsCb from 'get-pixels'
 import * as server from '../api/server.ts'
 import axios from 'axios'
 import { describe, before, after, it } from 'node:test'
 import config from '#config'
+
+// get-pixels returns an ndarray shaped [width, height, channels]
+const getPixels = promisify(getPixelsCb)
+const pngSize = async (data: ArrayBuffer) => {
+  const [width, height] = (await getPixels(Buffer.from(data), 'image/png')).shape
+  return { width, height }
+}
 
 const origin = `http://localhost:${config.port}`
 const ax = axios.create({ baseURL: `${origin}/api/v1/` })
@@ -25,28 +33,29 @@ describe('capture', () => {
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/png')
     const size1 = Number(res.headers['content-length'])
-    let img = await Jimp.read(res.data)
-    assert.equal(img.bitmap.width, 800)
-    assert.equal(img.bitmap.height, 450)
+    let img = await pngSize(res.data)
+    assert.equal(img.width, 800)
+    assert.equal(img.height, 450)
 
     res = await ax.get('screenshot', { params: { key, target, width: '1600' }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
     const size2 = Number(res.headers['content-length'])
     assert.ok(size2 > size1)
-    img = await Jimp.read(res.data)
-    assert.equal(img.bitmap.width, 1600)
-    assert.equal(img.bitmap.height, 450)
+    img = await pngSize(res.data)
+    assert.equal(img.width, 1600)
+    assert.equal(img.height, 450)
 
     res = await ax.get('screenshot', { params: { key, target, width: '1600', height: 'auto' }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
-    img = await Jimp.read(res.data)
-    assert.equal(img.bitmap.width, 1600)
-    assert.ok(img.bitmap.height > 880)
-    assert.ok(img.bitmap.height < 890)
+    img = await pngSize(res.data)
+    assert.equal(img.width, 1600)
+    assert.ok(img.height > 880)
+    assert.ok(img.height < 890)
 
     res = await ax.get('screenshot', { params: { key, target, filename: 'screenshot.png' } })
     assert.equal(res.status, 200)
-    assert.equal(res.headers['content-disposition'], 'attachment; filename="screenshot.png"')
+    // content-disposition 2 (express 5.3) only quotes filenames that need it
+    assert.equal(res.headers['content-disposition'], 'attachment; filename=screenshot.png')
   })
 
   it('make a few prints of a page', async () => {
@@ -152,7 +161,7 @@ describe('capture', () => {
     res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html', filename: 'test.gif' } })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/gif')
-    assert.equal(res.headers['content-disposition'], 'attachment; filename="test.gif"')
+    assert.equal(res.headers['content-disposition'], 'attachment; filename=test.gif')
 
     res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html' } })
     assert.equal(res.status, 200)
