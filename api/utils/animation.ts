@@ -6,8 +6,10 @@ import { pipeline } from 'node:stream/promises'
 import GifEncoder from 'gif-encoder'
 import getPixelsCb from 'get-pixels'
 import { optimizeGif } from './gifsicle.ts'
-import debug from 'debug'
+import debugModule from 'debug'
 import { type Page } from 'puppeteer'
+
+const debug = debugModule('capture')
 
 const getPixels = promisify(getPixelsCb)
 

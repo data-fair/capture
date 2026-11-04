@@ -38,6 +38,10 @@ Check the service with these examples (in the dev environment, replace 5607 with
   - [fallback to standard screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test1.html)
   - [remote url with a webgl based map](http://localhost:5617/api/v1/print?key=capture&target=https://staging-koumoul.com/cadastre/parcel?id=56251000AV0142)
 
+## Logging
+
+Logs go through the logger shared by the data-fair stack ([`@data-fair/lib-node/log.js`](https://github.com/data-fair/lib/tree/main/packages/node#logging)): one JSON object per line on stdout when `NODE_ENV=production` (the docker image), pretty output otherwise, `LOG_FORMAT=json|pretty` overrides. Warn, alert and error lines are counted in the `df_logs{level, code, host}` metric. `DEBUG=capture,timer` adds the debug lines of the capture steps and their durations.
+
 ## Security
 
 Consider reading this article https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image
