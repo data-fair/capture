@@ -66,6 +66,8 @@ export const createReportCollector = (page: Page, target: string) => {
   page.on('console', msg => {
     if (msg.type() === 'error') {
       const { url, lineNumber } = msg.location()
+      // Chrome logs failed resources on its own, same-origin ones are in the Network section
+      if (/^Failed to load resource/.test(msg.text()) && url && (isFavicon(url) || sameOrigin(url))) return
       consoleErrors.push({ text: msg.text(), ...(url ? { url } : {}), ...(url && lineNumber !== undefined ? { line: lineNumber } : {}) })
     } else if (msg.type() === 'warn') {
       consoleWarnings++
@@ -84,6 +86,8 @@ export const createReportCollector = (page: Page, target: string) => {
   })
   page.on('requestfailed', request => {
     if (!sameOrigin(request.url()) || isFavicon(request.url())) return
+    // apps cancel superseded fetches
+    if (request.failure()?.errorText === 'net::ERR_ABORTED') return
     const url = withoutQuery(request.url())
     failedRequests.push({ method: request.method(), url: url.href, path: url.pathname, errorText: request.failure()?.errorText })
   })
@@ -127,10 +131,11 @@ export const createReportCollector = (page: Page, target: string) => {
       page.title().catch(() => ''),
       ariaSnapshot(page, { maxChars: SNAPSHOT_MAX_CHARS, maxLinks: SNAPSHOT_MAX_LINKS })
     ])
+    const movedAway = !isSameHost(finalUrl, target)
     let verdict: Verdict
     if (new URL(finalUrl, target).pathname.startsWith('/simple-directory/login')) verdict = 'unauthenticated'
     else if (ready === 'timeout') verdict = 'timeout'
-    else if (consoleErrors.length || pageErrors.length || failedRequests.length || blockedFrames.length || (status !== undefined && status >= 400)) verdict = 'errors'
+    else if (movedAway || consoleErrors.length || pageErrors.length || failedRequests.length || blockedFrames.length || (status !== undefined && status >= 400)) verdict = 'errors'
     else verdict = 'ok'
 
     return {

@@ -39,6 +39,12 @@ Check the service with these examples (in the dev environment, replace 5607 with
   - [inspect: screenshot and render report as JSON (internal use)](http://localhost:5607/api/v1/inspect?key=capture&target=http://localhost:5607/test/resources/test-errors.html)
   - [remote url with a webgl based map](http://localhost:5617/api/v1/print?key=capture&target=https://staging-koumoul.com/cadastre/parcel?id=56251000AV0142)
 
+## Configuration
+
+Configuration is in `config/` and can be overridden with environment variables, see `config/custom-environment-variables.cjs`. Notably:
+
+  - `INSPECT_CONCURRENCY` (`inspectConcurrency`, default 1): how many `/inspect` renders may run at the same time, each one holds a browser page; further requests wait for a free slot.
+
 ## Security
 
 Consider reading this article https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image

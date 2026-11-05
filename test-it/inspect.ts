@@ -102,6 +102,42 @@ describe('inspect', () => {
     assert.match(res.data.text, /\[BLOCKED\] cross-host frame not rendered/)
   })
 
+  it('a healthy page is ok, without console noise', async () => {
+    const res = await inspect('/test/resources/test-clean.html')
+    assert.equal(res.status, 200)
+    assert.equal(res.data.report.verdict, 'ok', res.data.text)
+    assert.deepEqual(res.data.report.consoleErrors, [])
+  })
+
+  it('the main frame leaving the target host is an error', async () => {
+    const res = await inspect('/test/resources/test-other-host.html')
+    assert.equal(res.status, 200)
+    assert.equal(new URL(res.data.report.finalUrl).hostname, '127.0.0.1')
+    assert.equal(res.data.report.verdict, 'errors')
+    assert.match(res.data.text, new RegExp(`- Note: navigated away from localhost:${config.port} to 127\\.0\\.0\\.1:${config.port}\n`))
+  })
+
+  it('one huge text does not empty the snapshot', async () => {
+    const res = await inspect('/test/resources/test-long-text.html')
+    assert.equal(res.status, 200)
+    const snapshot: string = res.data.report.snapshot
+    assert.ok(snapshot.includes('Head of the page'))
+    assert.ok(snapshot.includes('After the long text'))
+    assert.ok(snapshot.length < 5000)
+    assert.ok(snapshot.includes('…'))
+    assert.ok(!snapshot.includes('# snapshot truncated'))
+  })
+
+  it('bounds the console and network sections', async () => {
+    const res = await inspect('/test/resources/test-many-errors.html')
+    assert.equal(res.status, 200)
+    const text: string = res.data.text
+    const consoleSection = text.slice(text.indexOf('### Console'), text.indexOf('### Snapshot'))
+    assert.ok(consoleSection.length <= 8000, `console section is ${consoleSection.length} chars`)
+    assert.match(consoleSection, /# console and network truncated: \d+ more lines\n$/)
+    assert.ok(text.length < 28000)
+  })
+
   it('full page is clipped to 3000px', async () => {
     const res = await inspect('/test/resources/test-big.html', { fullPage: 'true' })
     assert.equal(res.status, 200)

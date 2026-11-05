@@ -237,14 +237,17 @@ router.get('/inspect', async (req, res) => {
   const timer = createTimer(req.originalUrl, 'inspect')
 
   let collector: ReturnType<typeof createReportCollector> | undefined
-  await inspectSemaphore.run(() => pageUtils.withPage(
-    target,
-    lang,
-    timezone,
-    cookies,
-    viewport,
-    false,
-    timer,
+  await inspectSemaphore.run(async () => {
+    // the client may have left while waiting for a slot, no need to render for nobody
+    if (req.socket.destroyed || res.destroyed) return
+    await pageUtils.withPage(
+      target,
+      lang,
+      timezone,
+      cookies,
+      viewport,
+      false,
+      timer,
     `Failed to inspect page "${target}" before timeout`,
     async ({ page, ready }) => {
       const report = await collector!.finish(ready)
@@ -260,6 +263,7 @@ router.get('/inspect', async (req, res) => {
     },
     true,
     page => { collector = createReportCollector(page, target) }
-  ))
+    )
+  })
   timer.finish()
 })

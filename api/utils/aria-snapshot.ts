@@ -110,7 +110,10 @@ const createKey = (node: SerializedAXNode) => {
 }
 
 const isText = (node: SerializedAXNode) => node.role === 'StaticText'
-const text = (node: SerializedAXNode) => (node.name ?? '').replace(/\s+/g, ' ').trim()
+const MAX_TEXT = 2000
+// one huge value must not use the whole snapshot budget
+const capText = (str: string) => str.length > MAX_TEXT ? str.slice(0, MAX_TEXT - 1) + '…' : str
+const text = (node: SerializedAXNode) => capText((node.name ?? '').replace(/\s+/g, ' ').trim())
 
 // interestingOnly would drop useful containers (paragraph, list, listitem), so the whole tree is
 // requested and its structural noise is flattened here: children of unnamed none/generic nodes and
@@ -157,7 +160,7 @@ export const ariaSnapshot = async (page: Page, opts: { maxChars: number, maxLink
     }
 
     let inlineText: string | undefined
-    if ((node.role === 'textbox' || node.role === 'combobox') && node.value !== undefined && node.value !== '') inlineText = String(node.value)
+    if ((node.role === 'textbox' || node.role === 'combobox') && node.value !== undefined && node.value !== '') inlineText = capText(String(node.value))
     else if (!text(node) && children.length === 1 && isText(children[0]) && !href) {
       inlineText = text(children[0])
       children = []

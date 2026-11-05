@@ -1,4 +1,7 @@
 import type { RenderReport } from './report.ts'
+import { isSameHost } from './page.ts'
+
+const DETAILS_MAX_CHARS = 8000
 
 // layout of Playwright MCP responses (### Page, ### Console, ### Network, ### Snapshot),
 // plus the Ready, Verdict, [BLOCKED] and body lines that are specific to this tool
@@ -14,33 +17,49 @@ export const reportText = (report: RenderReport): string => {
     lines.push(`- Console: ${errors} errors, ${report.consoleWarnings} warnings`)
   }
   lines.push(`- Ready: ${report.ready === 'timeout' ? `timeout after ${report.durationMs} ms` : report.ready}`)
+  if (!isSameHost(report.finalUrl, report.url)) {
+    lines.push(`- Note: navigated away from ${new URL(report.url).host} to ${new URL(report.finalUrl).host}`)
+  }
   lines.push(`- Verdict: ${report.verdict}`)
 
+  // Console and Network together are bounded, the snapshot has its own budget
+  const details: string[] = []
   if (report.consoleErrors.length || report.pageErrors.length) {
-    lines.push('### Console')
+    details.push('### Console')
     for (const entry of report.consoleErrors) {
-      lines.push(`[ERROR] ${entry.text}` + (entry.url ? ` @ ${entry.url}${entry.line !== undefined ? ':' + entry.line : ''}` : ''))
+      details.push(`[ERROR] ${entry.text}` + (entry.url ? ` @ ${entry.url}${entry.line !== undefined ? ':' + entry.line : ''}` : ''))
     }
-    for (const error of report.pageErrors) lines.push(error)
+    for (const error of report.pageErrors) details.push(error)
   }
 
   if (report.failedRequests.length || report.blockedFrames.length) {
-    lines.push('### Network')
+    details.push('### Network')
     let i = 0
     for (const request of report.failedRequests) {
       i++
       if (request.status !== undefined) {
-        lines.push(`${i}. [${request.method}] ${request.url} => [${request.status}] ${request.statusText ?? ''}`.trimEnd())
-        if (request.body) lines.push(`   ${request.body}`)
+        details.push(`${i}. [${request.method}] ${request.url} => [${request.status}] ${request.statusText ?? ''}`.trimEnd())
+        if (request.body) details.push(`   ${request.body}`)
       } else {
-        lines.push(`${i}. [${request.method}] ${request.url} => [FAILED] ${request.errorText ?? ''}`.trimEnd())
+        details.push(`${i}. [${request.method}] ${request.url} => [FAILED] ${request.errorText ?? ''}`.trimEnd())
       }
     }
     for (const origin of report.blockedFrames) {
       i++
-      lines.push(`${i}. [GET] ${origin} => [BLOCKED] cross-host frame not rendered`)
+      details.push(`${i}. [GET] ${origin} => [BLOCKED] cross-host frame not rendered`)
     }
   }
+
+  // truncate at a line boundary, keeping room for the last line
+  let size = 0
+  let kept = 0
+  for (const line of details) {
+    if (size + line.length + 1 > DETAILS_MAX_CHARS - 50) break
+    size += line.length + 1
+    kept++
+  }
+  lines.push(...details.slice(0, kept))
+  if (kept < details.length) lines.push(`# console and network truncated: ${details.length - kept} more lines`)
 
   lines.push('### Snapshot', '```yaml', report.snapshot, '```')
   return lines.join('\n')
