@@ -248,21 +248,21 @@ router.get('/inspect', async (req, res) => {
       viewport,
       false,
       timer,
-    `Failed to inspect page "${target}" before timeout`,
-    async ({ page, ready }) => {
-      const report = await collector!.finish(ready)
-      let buffer
-      if (fullPage) {
-        const height = await page.evaluate(() => document.documentElement.scrollHeight)
-        buffer = await page.screenshot({ captureBeyondViewport: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
-      } else {
-        buffer = await page.screenshot()
-      }
-      timer.type = 'inspect'
-      res.json({ image: { data: Buffer.from(buffer).toString('base64'), mediaType: 'image/png' }, text: reportText(report), report })
-    },
-    true,
-    page => { collector = createReportCollector(page, target) }
+      `Failed to inspect page "${target}" before timeout`,
+      async ({ page, ready }) => {
+        const report = await collector!.finish(ready)
+        let buffer
+        if (fullPage) {
+          const height = await page.evaluate(() => document.documentElement.scrollHeight)
+          buffer = await page.screenshot({ captureBeyondViewport: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
+        } else {
+          buffer = await page.screenshot()
+        }
+        timer.type = 'inspect'
+        res.json({ image: { data: Buffer.from(buffer).toString('base64'), mediaType: 'image/png' }, text: reportText(report), report })
+      },
+      true,
+      page => { collector = createReportCollector(page, target) }
     )
   })
   timer.finish()
