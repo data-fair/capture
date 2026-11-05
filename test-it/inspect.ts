@@ -97,6 +97,7 @@ describe('inspect', () => {
     const res = await inspect('/test/resources/test-frame.html')
     assert.equal(res.status, 200)
     assert.deepEqual(res.data.report.blockedFrames, [`http://127.0.0.1:${config.port}`])
+    assert.ok(!res.data.report.snapshot.includes('Test page 1'), 'cross-host frame content must not be in the snapshot')
     assert.equal(res.data.report.verdict, 'errors')
     assert.match(res.data.text, /\[BLOCKED\] cross-host frame not rendered/)
   })
@@ -143,7 +144,7 @@ describe('inspect', () => {
       assert.equal(res.status, 200)
       const failed = res.data.report.failedRequests.find((f: any) => f.path === '/long')
       assert.ok(failed.body.length > 0)
-      assert.ok(failed.body.length <= 301)
+      assert.ok(failed.body.length <= 300)
     } finally {
       other.close()
     }

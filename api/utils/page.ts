@@ -82,6 +82,15 @@ const debugPage = (page: Page) => {
   })
 }
 
+// the host rule of onlySameHost, shared by the frames check and the report collector
+export const isSameHost = (url: string, target: string) => {
+  try {
+    return new URL(url).host === new URL(target).host
+  } catch (err) {
+    return false
+  }
+}
+
 type OpenPageResult = {
   page: Page,
   animationActivated: boolean,
@@ -102,6 +111,18 @@ async function openInPage (
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.browserContext().setCookie(...cookies)
   if (viewport) await page.setViewport(viewport)
+  if (reportFrames && config.onlySameHost) {
+    // cross-host frames are reported by the collector, but their content must not be loaded
+    await page.setRequestInterception(true)
+    page.on('request', request => {
+      if (request.isInterceptResolutionHandled()) return
+      if (request.isNavigationRequest() && request.frame() !== page.mainFrame() && !isSameHost(request.url(), target)) {
+        request.abort('blockedbyclient').catch(() => {})
+      } else {
+        request.continue().catch(() => {})
+      }
+    })
+  }
   timer.step('configure-page')
   const { animationActivated, ready } = await waitForPage(page, target, animate, timer)
 
@@ -110,12 +131,8 @@ async function openInPage (
     if (!frameUrl) continue
     // the frames are recorded by the report collector instead of failing the request
     if (reportFrames && !/^https?:/.test(frameUrl)) continue
-    let sameHost = false
-    try {
-      sameHost = new URL(frameUrl).host === new URL(target).host
-    } catch (err) {
-      throw httpError(400, 'IFrame with invalid URL :' + frameUrl)
-    }
+    if (!URL.canParse(frameUrl)) throw httpError(400, 'IFrame with invalid URL :' + frameUrl)
+    const sameHost = isSameHost(frameUrl, target)
     if (!sameHost && config.onlySameHost && !reportFrames) {
       debug(`${frameUrl} from iframe in ${target} is NOT on same host, reject`)
       throw httpError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)

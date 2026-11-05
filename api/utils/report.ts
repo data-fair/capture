@@ -1,5 +1,7 @@
 import type { Page } from 'puppeteer'
+import config from '#config'
 import { ariaSnapshot } from './aria-snapshot.ts'
+import { isSameHost } from './page.ts'
 
 export type Ready = 'triggered' | 'idle' | 'timeout'
 export type Verdict = 'ok' | 'errors' | 'timeout' | 'unauthenticated'
@@ -28,7 +30,7 @@ const MAX_BODY = 300
 const SNAPSHOT_MAX_CHARS = 20000
 const SNAPSHOT_MAX_LINKS = 200
 
-const cut = (str: string, max = MAX_STRING) => str.length > max ? str.slice(0, max) + '…' : str
+const cut = (str: string, max = MAX_STRING) => str.length > max ? str.slice(0, max - 1) + '…' : str
 
 const withoutQuery = (url: string) => {
   const parsed = new URL(url)
@@ -68,6 +70,14 @@ export const createReportCollector = (page: Page, target: string) => {
     } else if (msg.type() === 'warn') {
       consoleWarnings++
     }
+  })
+  // cross-host frames are aborted by openInPage (reportFrames), only their origin is kept
+  const blockedFrames: string[] = []
+  page.on('request', request => {
+    if (!config.onlySameHost || !request.isNavigationRequest() || request.frame() === page.mainFrame()) return
+    if (!/^https?:/.test(request.url()) || isSameHost(request.url(), target)) return
+    const origin = parseOrigin(request.url())
+    if (origin && !blockedFrames.includes(origin)) blockedFrames.push(origin)
   })
   page.on('pageerror', err => {
     pageErrors.push(err instanceof Error ? (err.stack || err.message) : String(err))
@@ -117,12 +127,6 @@ export const createReportCollector = (page: Page, target: string) => {
       page.title().catch(() => ''),
       ariaSnapshot(page, { maxChars: SNAPSHOT_MAX_CHARS, maxLinks: SNAPSHOT_MAX_LINKS })
     ])
-    const blockedFrames: string[] = []
-    for (const frame of page.frames()) {
-      const origin = /^https?:/.test(frame.url()) ? parseOrigin(frame.url()) : undefined
-      if (origin && origin !== targetOrigin && !blockedFrames.includes(origin)) blockedFrames.push(origin)
-    }
-
     let verdict: Verdict
     if (new URL(finalUrl, target).pathname.startsWith('/simple-directory/login')) verdict = 'unauthenticated'
     else if (ready === 'timeout') verdict = 'timeout'
