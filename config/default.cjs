@@ -8,6 +8,7 @@ module.exports = {
   },
   screenshotTimeout: 20000,
   concurrency: 5,
+  inspectConcurrency: 1, // concurrent /inspect renders, each one holds a browser page
   defaultLang: 'fr-FR',
   defaultTimezone: 'Europe/Paris',
   secretKeys: {

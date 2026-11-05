@@ -4,6 +4,7 @@ import * as headerFooter from '../utils/header-footer.ts'
 import * as pageUtils from '../utils/page.ts'
 import * as animationUtils from '../utils/animation.ts'
 import { createTimer } from '../utils/timer.ts'
+import { createSemaphore } from '../utils/semaphore.ts'
 import { createReportCollector } from '../utils/report.ts'
 import { reportText } from '../utils/report-text.ts'
 import config from '#config'
@@ -11,6 +12,9 @@ import { assertReqInternalSecret, httpError, reqHost, reqIsInternal, reqSession 
 import type { PaperFormat, PDFOptions } from 'puppeteer'
 
 const debug = debugModule('capture')
+
+// /inspect renders are expensive, a small number of them run at the same time
+const inspectSemaphore = createSemaphore(config.inspectConcurrency)
 
 export const router = express.Router()
 
@@ -233,7 +237,7 @@ router.get('/inspect', async (req, res) => {
   const timer = createTimer(req.originalUrl, 'inspect')
 
   let collector: ReturnType<typeof createReportCollector> | undefined
-  await pageUtils.withPage(
+  await inspectSemaphore.run(() => pageUtils.withPage(
     target,
     lang,
     timezone,
@@ -256,6 +260,6 @@ router.get('/inspect', async (req, res) => {
     },
     true,
     page => { collector = createReportCollector(page, target) }
-  )
+  ))
   timer.finish()
 })

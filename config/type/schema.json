@@ -17,6 +17,7 @@
     "observer",
     "puppeteerLaunchOptions",
     "concurrency",
+    "inspectConcurrency",
     "defaultLang",
     "defaultTimezone",
     "screenshotTimeout",
@@ -69,6 +70,10 @@
     },
     "concurrency": {
       "type": "integer"
+    },
+    "inspectConcurrency": {
+      "type": "integer",
+      "minimum": 1
     },
     "defaultLang": {
       "type": "string"

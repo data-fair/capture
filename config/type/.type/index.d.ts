@@ -21,6 +21,7 @@ export type ApiConfig = {
     [k: string]: unknown;
   };
   concurrency: number;
+  inspectConcurrency: number;
   defaultLang: string;
   defaultTimezone: string;
   onlySameHost?: boolean;

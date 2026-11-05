@@ -9,6 +9,7 @@ module.exports = {
   },
   screenshotTimeout: 'SCREENSHOT_TIMEOUT',
   concurrency: 'CONCURRENCY',
+  inspectConcurrency: 'INSPECT_CONCURRENCY',
   defaultLang: 'DEFAULT_LANG',
   defaultTimezone: 'DEFAULT_TIMEZONE',
   secretKeys: {
