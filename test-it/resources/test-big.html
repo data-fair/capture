@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Big page</title>
+  </head>
+  <body>
+    <ul id="list"></ul>
+    <script>
+      const list = document.getElementById('list')
+      for (let i = 0; i < 3000; i++) {
+        const li = document.createElement('li')
+        li.textContent = 'Item number ' + i
+        list.appendChild(li)
+      }
+      setTimeout(() => window.triggerCapture && window.triggerCapture(), 100)
+    </script>
+  </body>
+</html>

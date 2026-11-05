@@ -4,6 +4,8 @@ import * as headerFooter from '../utils/header-footer.ts'
 import * as pageUtils from '../utils/page.ts'
 import * as animationUtils from '../utils/animation.ts'
 import { createTimer } from '../utils/timer.ts'
+import { createReportCollector } from '../utils/report.ts'
+import { reportText } from '../utils/report-text.ts'
 import config from '#config'
 import { assertReqInternalSecret, httpError, reqHost, reqIsInternal, reqSession } from '@data-fair/lib-express'
 import type { PaperFormat, PDFOptions } from 'puppeteer'
@@ -50,7 +52,7 @@ async function auth (req: Request, res: Response, next: NextFunction) {
 
   if (securedSameHost && req.cookies && Object.keys(req.cookies).length && req.query.cookies !== 'false') {
     debug(`[${target}] transmit cookies`)
-    req.cookies = Object.keys(req.cookies).map(name => ({ name, value: req.cookies[name], url: target }))
+    req.cookies = Object.keys(req.cookies).map(name => ({ name, value: req.cookies[name], url: target })) as any
   } else {
     debug(`[${target}] do not transmit cookies`)
     req.cookies = []
@@ -186,6 +188,74 @@ router.get('/print', auth, async (req, res, next) => {
         res.send(buffer.toString())
       }
     }
+  )
+  timer.finish()
+})
+
+const desktopViewport = { width: 1280, height: 800 }
+const mobileViewport = { width: 390, height: 844, isMobile: true, hasTouch: true }
+const maxFullPageHeight = 3000
+
+const viewportDimension = (value: unknown, fallback: number) => {
+  if (value === undefined) return fallback
+  const parsed = typeof value === 'string' ? parseInt(value) : NaN
+  if (!(parsed > 0 && parsed <= 3000)) throw httpError(400, 'invalid width or height')
+  return parsed
+}
+
+// internal only: used by data-fair and portals so that agents can see what they configured
+router.get('/inspect', async (req, res) => {
+  assertReqInternalSecret(req, config.secretKeys.capture)
+
+  const target = req.query.target
+  if (typeof target !== 'string') throw httpError(400, 'parameter "target" is required')
+  let targetUrl
+  try {
+    targetUrl = new URL(target)
+  } catch (err: any) {
+    throw httpError(400, 'Failed to parse target url ' + err.message)
+  }
+  if (targetUrl.protocol !== 'http:' && targetUrl.protocol !== 'https:') throw httpError(400, 'target must be an http or https url')
+  debug(`[${target}] inspect`)
+
+  const lang = req.query.lang
+  if (lang && typeof lang !== 'string') throw httpError(400, 'invalid lang')
+  const timezone = req.query.timezone
+  if (timezone && typeof timezone !== 'string') throw httpError(400, 'invalid timezone')
+
+  const mobile = req.query.mobile === 'true'
+  const fullPage = req.query.fullPage === 'true'
+  const viewport = mobile
+    ? mobileViewport
+    : { width: viewportDimension(req.query.width, desktopViewport.width), height: viewportDimension(req.query.height, desktopViewport.height) }
+
+  const cookies = Object.keys(req.cookies ?? {}).map(name => ({ name, value: req.cookies[name], url: target })) as any
+  const timer = createTimer(req.originalUrl, 'inspect')
+
+  let collector: ReturnType<typeof createReportCollector> | undefined
+  await pageUtils.withPage(
+    target,
+    lang,
+    timezone,
+    cookies,
+    viewport,
+    false,
+    timer,
+    `Failed to inspect page "${target}" before timeout`,
+    async ({ page, ready }) => {
+      const report = await collector!.finish(ready)
+      let buffer
+      if (fullPage) {
+        const height = await page.evaluate(() => document.documentElement.scrollHeight)
+        buffer = await page.screenshot({ captureBeyondViewport: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
+      } else {
+        buffer = await page.screenshot()
+      }
+      timer.type = 'inspect'
+      res.json({ image: { data: Buffer.from(buffer).toString('base64'), mediaType: 'image/png' }, text: reportText(report), report })
+    },
+    true,
+    page => { collector = createReportCollector(page, target) }
   )
   timer.finish()
 })

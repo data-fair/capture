@@ -5,6 +5,7 @@ import { contextsCleanups } from './metrics.ts'
 import debugModule from 'debug'
 import { Timer } from './timer.ts'
 import { httpError } from '@data-fair/lib-express'
+import type { Ready } from './report.ts'
 
 const debug = debugModule('capture')
 
@@ -83,7 +84,8 @@ const debugPage = (page: Page) => {
 
 type OpenPageResult = {
   page: Page,
-  animationActivated: boolean
+  animationActivated: boolean,
+  ready: Ready
 }
 
 async function openInPage (
@@ -94,30 +96,33 @@ async function openInPage (
   cookies: CookieData[],
   viewport: Viewport | undefined,
   animate: boolean,
-  timer: Timer
+  timer: Timer,
+  reportFrames: boolean
 ): Promise<OpenPageResult> {
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.browserContext().setCookie(...cookies)
   if (viewport) await page.setViewport(viewport)
   timer.step('configure-page')
-  const animationActivated = await waitForPage(page, target, animate, timer)
+  const { animationActivated, ready } = await waitForPage(page, target, animate, timer)
 
   for (const frame of page.frames()) {
     const frameUrl = frame.url()
     if (!frameUrl) continue
+    // the frames are recorded by the report collector instead of failing the request
+    if (reportFrames && !/^https?:/.test(frameUrl)) continue
     let sameHost = false
     try {
       sameHost = new URL(frameUrl).host === new URL(target).host
     } catch (err) {
       throw httpError(400, 'IFrame with invalid URL :' + frameUrl)
     }
-    if (!sameHost && config.onlySameHost) {
+    if (!sameHost && config.onlySameHost && !reportFrames) {
       debug(`${frameUrl} from iframe in ${target} is NOT on same host, reject`)
       throw httpError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)
     }
   }
 
-  return { page, animationActivated }
+  return { page, animationActivated, ready }
 }
 
 export const promiseTimeout = async <T>(promise: Promise<T>, ms: number, msg = 'timeout') => {
@@ -136,7 +141,9 @@ export const withPage = async (
   animate: boolean,
   timer: Timer,
   callbackTimeoutMsg: string,
-  callback: (result: OpenPageResult) => Promise<void>) => {
+  callback: (result: OpenPageResult) => Promise<void>,
+  reportFrames = false,
+  onPage?: (page: Page) => void) => {
   if (target.includes('capture-test-error=true')) {
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
@@ -161,10 +168,11 @@ export const withPage = async (
       }
     }
     debugPage(page)
+    onPage?.(page)
     timer.step('newPage')
 
     const result = await promiseTimeout(
-      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer),
+      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, reportFrames),
       config.screenshotTimeout * 2,
       `Failed to open "${target}" in context before timeout`
     )
@@ -217,7 +225,7 @@ const waitForPage = async (
   target: string,
   animate: boolean,
   timer: Timer
-) => {
+): Promise<{ animationActivated: boolean, ready: Ready }> => {
   // Prepare a function that the page can call to signal that it is ready for capture
   let captureTriggered = false
   let timeoutReached = false
@@ -299,6 +307,7 @@ const waitForPage = async (
         } else {
           timer.step('wait2-timeout')
           debug(`[${target}] timeout of ${config.screenshotTimeout} was reached`)
+          timeoutReached = true
         }
       } else {
         debug(`[${target}] wait 1000ms more after idle network for safety`)
@@ -307,7 +316,8 @@ const waitForPage = async (
       }
     }
   }
-  return animationActivated
+  const ready: Ready = captureTriggered ? 'triggered' : timeoutReached ? 'timeout' : 'idle'
+  return { animationActivated, ready }
 }
 
 const setPageLocale = async (page: Page, lang: string, timezone: string) => {

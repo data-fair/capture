@@ -36,6 +36,7 @@ Check the service with these examples (in the dev environment, replace 5607 with
   - [animated gif screenshot](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&target=http://localhost:5607/test/resources/test-anim.html)
   - [animated gif screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test-anim.html)
   - [fallback to standard screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test1.html)
+  - [inspect: screenshot and render report as JSON (internal use)](http://localhost:5607/api/v1/inspect?key=capture&target=http://localhost:5607/test/resources/test-errors.html)
   - [remote url with a webgl based map](http://localhost:5617/api/v1/print?key=capture&target=https://staging-koumoul.com/cadastre/parcel?id=56251000AV0142)
 
 ## Security

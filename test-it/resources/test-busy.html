@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Busy page</title>
+  </head>
+  <body>
+    <h1>Busy page</h1>
+    <script>
+      // keeps the network busy and never triggers the capture
+      setInterval(() => fetch('/test/resources/test1.html'), 200)
+    </script>
+  </body>
+</html>

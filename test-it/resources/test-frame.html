@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Cross-host frame</title>
+  </head>
+  <body>
+    <h1>Cross-host frame</h1>
+    <script>
+      // localhost and 127.0.0.1 are different hosts
+      const frame = document.createElement('iframe')
+      frame.src = 'http://127.0.0.1:' + location.port + '/test/resources/test1.html'
+      frame.addEventListener('load', () => setTimeout(() => window.triggerCapture && window.triggerCapture(), 100))
+      document.body.appendChild(frame)
+    </script>
+  </body>
+</html>
