@@ -5,7 +5,8 @@ module.exports = {
   onlySameHost: false,
   concurrency: 2,
   secretKeys: {
-    capture: 'capture'
+    capture: 'capture',
+    inspect: 'inspect'
   },
   observer: {
     active: false

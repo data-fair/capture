@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Snapshot page</title>
+  </head>
+  <body>
+    <h1>Hello</h1>
+    <a href="/next">Next</a>
+    <p>Some text</p>
+    <label><input type="checkbox" checked> Agree</label>
+    <iframe src="/test/resources/test1.html"></iframe>
+    <script>
+      window.addEventListener('load', () => {
+        setTimeout(() => window.triggerCapture && window.triggerCapture(), 100)
+      })
+    </script>
+  </body>
+</html>

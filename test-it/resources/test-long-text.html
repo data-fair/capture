@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Long text</title>
+  </head>
+  <body>
+    <h1>Head of the page</h1>
+    <p id="long"></p>
+    <h2>After the long text</h2>
+    <script>
+      document.getElementById('long').textContent = 'lorem '.repeat(20000)
+    </script>
+  </body>
+</html>

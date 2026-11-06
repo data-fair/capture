@@ -6,6 +6,7 @@ import debugModule from 'debug'
 import log from '@data-fair/lib-node/log.js'
 import { Timer } from './timer.ts'
 import { httpError } from '@data-fair/lib-express'
+import type { Ready } from './report.ts'
 
 const debug = debugModule('capture')
 
@@ -82,9 +83,35 @@ const debugPage = (page: Page) => {
   })
 }
 
+// the host rule of onlySameHost, shared by the frames check and the report collector
+export const isSameHost = (url: string, target: string) => {
+  try {
+    return new URL(url).host === new URL(target).host
+  } catch (err) {
+    return false
+  }
+}
+
+// options of the /inspect renders
+export type InspectOptions = {
+  onPage?: (page: Page) => void,
+  // POST requests to this URL (query ignored) are answered by capture itself and never reach the
+  // server, their body is handed to onDeclaredError: this is how an application declares an error
+  declaredErrorUrl?: string,
+  onDeclaredError?: (body: string | undefined) => void
+}
+
+const withoutQuery = (url: string) => {
+  const parsed = new URL(url)
+  parsed.search = ''
+  parsed.hash = ''
+  return parsed.href
+}
+
 type OpenPageResult = {
   page: Page,
-  animationActivated: boolean
+  animationActivated: boolean,
+  ready: Ready
 }
 
 async function openInPage (
@@ -95,30 +122,47 @@ async function openInPage (
   cookies: CookieData[],
   viewport: Viewport | undefined,
   animate: boolean,
-  timer: Timer
+  timer: Timer,
+  inspect: InspectOptions | undefined
 ): Promise<OpenPageResult> {
+  const reportFrames = !!inspect
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.browserContext().setCookie(...cookies)
   if (viewport) await page.setViewport(viewport)
+  const declaredErrorUrl = inspect?.declaredErrorUrl && withoutQuery(inspect.declaredErrorUrl)
+  if (reportFrames && (config.onlySameHost || declaredErrorUrl)) {
+    // cross-host frames are reported by the collector, but their content must not be loaded
+    await page.setRequestInterception(true)
+    page.on('request', request => {
+      if (request.isInterceptResolutionHandled()) return
+      if (declaredErrorUrl && request.method() === 'POST' && URL.canParse(request.url()) && withoutQuery(request.url()) === declaredErrorUrl) {
+        // a render must not write anything, the declared error is only reported
+        inspect?.onDeclaredError?.(request.postData())
+        request.respond({ status: 204 }).catch(() => {})
+      } else if (config.onlySameHost && request.isNavigationRequest() && request.frame() !== page.mainFrame() && !isSameHost(request.url(), target)) {
+        request.abort('blockedbyclient').catch(() => {})
+      } else {
+        request.continue().catch(() => {})
+      }
+    })
+  }
   timer.step('configure-page')
-  const animationActivated = await waitForPage(page, target, animate, timer)
+  const { animationActivated, ready } = await waitForPage(page, target, animate, timer)
 
   for (const frame of page.frames()) {
     const frameUrl = frame.url()
     if (!frameUrl) continue
-    let sameHost = false
-    try {
-      sameHost = new URL(frameUrl).host === new URL(target).host
-    } catch (err) {
-      throw httpError(400, 'IFrame with invalid URL :' + frameUrl)
-    }
-    if (!sameHost && config.onlySameHost) {
+    // the frames are recorded by the report collector instead of failing the request
+    if (reportFrames && !/^https?:/.test(frameUrl)) continue
+    if (!URL.canParse(frameUrl)) throw httpError(400, 'IFrame with invalid URL :' + frameUrl)
+    const sameHost = isSameHost(frameUrl, target)
+    if (!sameHost && config.onlySameHost && !reportFrames) {
       debug(`${frameUrl} from iframe in ${target} is NOT on same host, reject`)
       throw httpError(400, 'IFrame did not have same host :' + new URL(frameUrl).host)
     }
   }
 
-  return { page, animationActivated }
+  return { page, animationActivated, ready }
 }
 
 export const promiseTimeout = async <T>(promise: Promise<T>, ms: number, msg = 'timeout') => {
@@ -137,7 +181,8 @@ export const withPage = async (
   animate: boolean,
   timer: Timer,
   callbackTimeoutMsg: string,
-  callback: (result: OpenPageResult) => Promise<void>) => {
+  callback: (result: OpenPageResult) => Promise<void>,
+  inspect?: InspectOptions) => {
   if (target.includes('capture-test-error=true')) {
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
@@ -162,10 +207,11 @@ export const withPage = async (
       }
     }
     debugPage(page)
+    inspect?.onPage?.(page)
     timer.step('newPage')
 
     const result = await promiseTimeout(
-      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer),
+      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, inspect),
       config.screenshotTimeout * 2,
       `Failed to open "${target}" in context before timeout`
     )
@@ -218,7 +264,7 @@ const waitForPage = async (
   target: string,
   animate: boolean,
   timer: Timer
-) => {
+): Promise<{ animationActivated: boolean, ready: Ready }> => {
   // Prepare a function that the page can call to signal that it is ready for capture
   let captureTriggered = false
   let timeoutReached = false
@@ -300,6 +346,7 @@ const waitForPage = async (
         } else {
           timer.step('wait2-timeout')
           debug(`[${target}] timeout of ${config.screenshotTimeout} was reached`)
+          timeoutReached = true
         }
       } else {
         debug(`[${target}] wait 1000ms more after idle network for safety`)
@@ -308,7 +355,8 @@ const waitForPage = async (
       }
     }
   }
-  return animationActivated
+  const ready: Ready = captureTriggered ? 'triggered' : timeoutReached ? 'timeout' : 'idle'
+  return { animationActivated, ready }
 }
 
 const setPageLocale = async (page: Page, lang: string, timezone: string) => {

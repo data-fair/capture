@@ -11,6 +11,7 @@ export type ApiConfig = {
   };
   secretKeys: {
     capture: string;
+    inspect?: string;
   };
   observer: {
     active?: boolean;
@@ -21,6 +22,7 @@ export type ApiConfig = {
     [k: string]: unknown;
   };
   concurrency: number;
+  inspectConcurrency: number;
   defaultLang: string;
   defaultTimezone: string;
   onlySameHost?: boolean;

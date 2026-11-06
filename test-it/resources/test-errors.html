@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Errors page</title>
+  </head>
+  <body>
+    <h1>Errors page</h1>
+    <script>
+      console.error('boom-console')
+      setTimeout(() => { throw new Error('boom-page') })
+      fetch('/test/resources/missing.json').finally(() => {
+        setTimeout(() => window.triggerCapture && window.triggerCapture(), 50)
+      })
+    </script>
+  </body>
+</html>
