@@ -47,6 +47,10 @@ Configuration is in `config/` and can be overridden with environment variables, 
   - `SECRET_CAPTURE` (`secretKeys.capture`, default none): when set, `/screenshot` and `/print` require it in `x-secret-key` from internal callers without a session. Leave it unset while browsers or other services call them directly.
   - `SECRET_INSPECT` (`secretKeys.inspect`, default none): required in `x-secret-key` on `/inspect` (internal requests only), which is disabled without it. A secret of its own, so that enabling `/inspect` does not lock `/screenshot` and `/print`.
   - `INSPECT_CONCURRENCY` (`inspectConcurrency`, default 1): how many `/inspect` renders may run at the same time, each one holds a browser page; further requests wait for a free slot.
+=======
+## Logging
+
+Logs go through the logger shared by the data-fair stack ([`@data-fair/lib-node/log.js`](https://github.com/data-fair/lib/tree/main/packages/node#logging)): one JSON object per line on stdout when `NODE_ENV=production` (the docker image), pretty output otherwise, `LOG_FORMAT=json|pretty` overrides. Warn, alert and error lines are counted in the `df_logs{level, code, host}` metric. `DEBUG=capture,timer` adds the debug lines of the capture steps and their durations.
 
 ## Security
 

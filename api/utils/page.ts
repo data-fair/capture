@@ -3,6 +3,7 @@ import puppeteer, { type Viewport, type Browser, type BrowserContext, type Page,
 import genericPool, { type Factory, type Pool } from 'generic-pool'
 import { contextsCleanups } from './metrics.ts'
 import debugModule from 'debug'
+import log from '@data-fair/lib-node/log.js'
 import { Timer } from './timer.ts'
 import { httpError } from '@data-fair/lib-express'
 import type { Ready } from './report.ts'
@@ -20,7 +21,7 @@ export function contextPool () {
 }
 
 export const start = async () => {
-  console.log('init puppeteer browser', config.puppeteerLaunchOptions)
+  log.info('init puppeteer browser', { launchOptions: config.puppeteerLaunchOptions })
   _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
   const contextFactory: Factory<BrowserContext> = {
     async create () {
@@ -37,14 +38,14 @@ export const start = async () => {
   // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
   _browser.on('disconnected', async () => {
     if (!_closed) {
-      console.log('Browser was disconnected for some reason, reconnect')
+      log.error('browser was disconnected, reconnect', { code: 'browser-disconnected' })
       try {
         await _contextPool.drain()
         _contextPool.clear()
       } catch (err) {
-        console.log('Error while draining replaced contexts pool', err)
+        log.error('failure while draining the replaced contexts pool', { code: 'contexts-pool-drain', err })
       }
-      exports.start()
+      start().catch(err => log.error('failure while restarting the browser', { code: 'browser-restart', err }))
     }
   })
 }
@@ -68,7 +69,7 @@ const debugPage = (page: Page) => {
       }
       if (args.length) debug(`[${page.url()}] console.${msg.type()}: `, ...args)
     } catch (err) {
-      console.error(`[${page.url()}] failed to parse console message: ${msg.text()}`, err)
+      log.warn('failed to parse a console message of a captured page', { code: 'page-console-parse', url: page.url(), err })
     }
   })
   page.on('pageerror', err => {
@@ -248,7 +249,7 @@ const safeCleanContext = async (page: Page, openSuccess: boolean) => {
       await _contextPool.release(page.browserContext())
       contextsCleanups.inc()
     } catch (err) {
-      console.error('Failed to clean page properly, do not reuse this context', err)
+      log.warn('failed to clean page properly, do not reuse this context', { code: 'page-clean', err })
       await _contextPool.destroy(page.browserContext())
     }
   } else {

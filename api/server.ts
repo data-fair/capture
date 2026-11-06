@@ -1,6 +1,7 @@
 import { createServer } from 'node:http'
 import { session } from '@data-fair/lib-express/index.js'
 import { startObserver, stopObserver } from '@data-fair/lib-node/observer.js'
+import log from '@data-fair/lib-node/log.js'
 import eventPromise from '@data-fair/lib-utils/event-promise.js'
 import { createHttpTerminator } from 'http-terminator'
 import app from './app.ts'
@@ -22,15 +23,15 @@ export const start = async () => {
   await pageUtils.start()
   if (config.observer.active) await startObserver(config.observer.port)
   if (config.privateDirectoryUrl) {
-    console.log('Configure with Simple Directory authentication')
+    log.info('configured with simple-directory authentication')
     session.init(config.privateDirectoryUrl)
   } else {
-    console.log('Configure without authentication, this instance of @data-fair/capture should not be exposed publicly')
+    log.warn('configured without authentication, this instance of @data-fair/capture should not be exposed publicly', { code: 'config-no-auth' })
   }
   server.listen(config.port)
   await eventPromise(server, 'listening')
 
-  console.log(`API server listening on port ${config.port}`)
+  log.info(`API server listening on port ${config.port}`)
 }
 
 export const stop = async () => {
