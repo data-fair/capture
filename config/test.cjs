@@ -6,7 +6,8 @@ module.exports = {
   onlySameHost: true,
   useHostHeader: true,
   secretKeys: {
-    capture: 'capture'
+    capture: 'capture',
+    inspect: 'inspect'
   },
   observer: {
     active: false

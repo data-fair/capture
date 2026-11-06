@@ -11,6 +11,7 @@ export type ApiConfig = {
   };
   secretKeys: {
     capture: string;
+    inspect?: string;
   };
   observer: {
     active?: boolean;

@@ -51,6 +51,9 @@
       "properties": {
         "capture": {
           "type": "string"
+        },
+        "inspect": {
+          "type": "string"
         }
       }
     },

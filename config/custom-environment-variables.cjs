@@ -13,7 +13,8 @@ module.exports = {
   defaultLang: 'DEFAULT_LANG',
   defaultTimezone: 'DEFAULT_TIMEZONE',
   secretKeys: {
-    capture: 'SECRET_CAPTURE'
+    capture: 'SECRET_CAPTURE',
+    inspect: 'SECRET_INSPECT'
   },
   observer: {
     active: {

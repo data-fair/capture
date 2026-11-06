@@ -209,7 +209,9 @@ const viewportDimension = (value: unknown, fallback: number) => {
 
 // internal only: used by data-fair and portals so that agents can see what they configured
 router.get('/inspect', async (req, res) => {
-  assertReqInternalSecret(req, config.secretKeys.capture)
+  // a secret of its own: setting it does not lock /screenshot and /print, that public clients call
+  if (!config.secretKeys.inspect) throw httpError(501, 'inspect is disabled, it needs SECRET_INSPECT')
+  assertReqInternalSecret(req, config.secretKeys.inspect)
 
   const target = req.query.target
   if (typeof target !== 'string') throw httpError(400, 'parameter "target" is required')

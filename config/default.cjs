@@ -12,7 +12,8 @@ module.exports = {
   defaultLang: 'fr-FR',
   defaultTimezone: 'Europe/Paris',
   secretKeys: {
-    capture: null
+    capture: null, // when set, required on /screenshot and /print from callers without a session
+    inspect: null // required on /inspect, which is disabled without it
   },
   maxAnimationFrames: 1800, // 2 minutes at 15fps
   puppeteerLaunchOptions: {

@@ -15,7 +15,7 @@ const pngSize = async (data: Buffer) => {
 
 const origin = `http://localhost:${config.port}`
 const ax = axios.create({ baseURL: `${origin}/api/v1/`, validateStatus: () => true })
-const key = 'capture'
+const key = 'inspect'
 const inspect = (path: string, params: Record<string, any> = {}, headers: Record<string, string> = { 'x-secret-key': key }) =>
   ax.get('inspect', { params: { target: origin + path, ...params }, headers })
 
@@ -169,6 +169,8 @@ describe('inspect', () => {
   it('refuses without the secret', async () => {
     assert.equal((await inspect('/test/resources/test1.html', {}, {})).status, 401)
     assert.equal((await inspect('/test/resources/test1.html', {}, { 'x-secret-key': 'wrong' })).status, 401)
+    // the secret of /screenshot and /print does not open /inspect
+    assert.equal((await inspect('/test/resources/test1.html', {}, { 'x-secret-key': 'capture' })).status, 401)
   })
 
   it('refuses a forwarded request', async () => {

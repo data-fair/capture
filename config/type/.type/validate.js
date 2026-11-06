@@ -4,7 +4,7 @@
 "use strict";
 export const validate = validate14;
 export default validate14;
-const schema16 = {"$id":"https://github.com/data-fair/events/api/config","x-exports":["types","validate"],"x-ajv":{"coerceTypes":"array"},"type":"object","title":"Api config","additionalProperties":false,"required":["port","secretKeys","helmet","observer","puppeteerLaunchOptions","concurrency","inspectConcurrency","defaultLang","defaultTimezone","screenshotTimeout","maxAnimationFrames"],"properties":{"port":{"type":"number"},"publicUrl":{"type":"string"},"privateDirectoryUrl":{"type":"string","pattern":"^https?://"},"helmet":{"type":"object","additionalProperties":false,"required":["active"],"properties":{"active":{"type":"boolean"}}},"secretKeys":{"type":"object","additionalProperties":false,"required":["capture"],"properties":{"capture":{"type":"string"}}},"observer":{"type":"object","properties":{"active":{"type":"boolean"},"port":{"type":"number"}}},"puppeteerLaunchOptions":{"type":"object"},"concurrency":{"type":"integer"},"inspectConcurrency":{"type":"integer","minimum":1},"defaultLang":{"type":"string"},"defaultTimezone":{"type":"string"},"onlySameHost":{"type":"boolean"},"useHostHeader":{"type":"boolean"},"screenshotTimeout":{"type":"number"},"maxAnimationFrames":{"type":"number"},"util":{},"get":{},"has":{}}};
+const schema16 = {"$id":"https://github.com/data-fair/events/api/config","x-exports":["types","validate"],"x-ajv":{"coerceTypes":"array"},"type":"object","title":"Api config","additionalProperties":false,"required":["port","secretKeys","helmet","observer","puppeteerLaunchOptions","concurrency","inspectConcurrency","defaultLang","defaultTimezone","screenshotTimeout","maxAnimationFrames"],"properties":{"port":{"type":"number"},"publicUrl":{"type":"string"},"privateDirectoryUrl":{"type":"string","pattern":"^https?://"},"helmet":{"type":"object","additionalProperties":false,"required":["active"],"properties":{"active":{"type":"boolean"}}},"secretKeys":{"type":"object","additionalProperties":false,"required":["capture"],"properties":{"capture":{"type":"string"},"inspect":{"type":"string"}}},"observer":{"type":"object","properties":{"active":{"type":"boolean"},"port":{"type":"number"}}},"puppeteerLaunchOptions":{"type":"object"},"concurrency":{"type":"integer"},"inspectConcurrency":{"type":"integer","minimum":1},"defaultLang":{"type":"string"},"defaultTimezone":{"type":"string"},"onlySameHost":{"type":"boolean"},"useHostHeader":{"type":"boolean"},"screenshotTimeout":{"type":"number"},"maxAnimationFrames":{"type":"number"},"util":{},"get":{},"has":{}}};
 const func2 = Object.prototype.hasOwnProperty;
 const pattern0 = new RegExp("^https?://", "u");
 
@@ -348,7 +348,7 @@ vErrors.push(err20);
 errors++;
 }
 for(const key2 in data5){
-if(!(key2 === "capture")){
+if(!((key2 === "capture") || (key2 === "inspect"))){
 const err21 = {instancePath:instancePath+"/secretKeys",schemaPath:"#/properties/secretKeys/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key2},message:"must NOT have additional properties"};
 if(vErrors === null){
 vErrors = [err21];
@@ -397,9 +397,27 @@ data5["capture"] = coerced4;
 }
 }
 }
+if(data5.inspect !== undefined){
+let data7 = data5.inspect;
+if(typeof data7 !== "string"){
+let dataType5 = typeof data7;
+let coerced5 = undefined;
+if(dataType5 == 'object' && Array.isArray(data7) && data7.length == 1){
+data7 = data7[0];
+dataType5 = typeof data7;
+if(typeof data7 === "string"){
+coerced5 = data7;
+}
+}
+if(!(coerced5 !== undefined)){
+if(dataType5 == "number" || dataType5 == "boolean"){
+coerced5 = "" + data7;
+}
+else if(data7 === null){
+coerced5 = "";
 }
 else {
-const err23 = {instancePath:instancePath+"/secretKeys",schemaPath:"#/properties/secretKeys/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err23 = {instancePath:instancePath+"/secretKeys/inspect",schemaPath:"#/properties/secretKeys/properties/inspect/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err23];
 }
@@ -409,30 +427,17 @@ vErrors.push(err23);
 errors++;
 }
 }
-if(data.observer !== undefined){
-let data7 = data.observer;
-if(data7 && typeof data7 == "object" && !Array.isArray(data7)){
-if(data7.active !== undefined){
-let data8 = data7.active;
-if(typeof data8 !== "boolean"){
-let dataType5 = typeof data8;
-let coerced5 = undefined;
-if(dataType5 == 'object' && Array.isArray(data8) && data8.length == 1){
-data8 = data8[0];
-dataType5 = typeof data8;
-if(typeof data8 === "boolean"){
-coerced5 = data8;
+if(coerced5 !== undefined){
+data7 = coerced5;
+if(data5 !== undefined){
+data5["inspect"] = coerced5;
 }
 }
-if(!(coerced5 !== undefined)){
-if(data8 === "false" || data8 === 0 || data8 === null){
-coerced5 = false;
 }
-else if(data8 === "true" || data8 === 1){
-coerced5 = true;
+}
 }
 else {
-const err24 = {instancePath:instancePath+"/observer/active",schemaPath:"#/properties/observer/properties/active/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
+const err24 = {instancePath:instancePath+"/secretKeys",schemaPath:"#/properties/secretKeys/type",keyword:"type",params:{type: "object"},message:"must be object"};
 if(vErrors === null){
 vErrors = [err24];
 }
@@ -442,33 +447,30 @@ vErrors.push(err24);
 errors++;
 }
 }
-if(coerced5 !== undefined){
-data8 = coerced5;
-if(data7 !== undefined){
-data7["active"] = coerced5;
-}
-}
-}
-}
-if(data7.port !== undefined){
-let data9 = data7.port;
-if(!(typeof data9 == "number")){
+if(data.observer !== undefined){
+let data8 = data.observer;
+if(data8 && typeof data8 == "object" && !Array.isArray(data8)){
+if(data8.active !== undefined){
+let data9 = data8.active;
+if(typeof data9 !== "boolean"){
 let dataType6 = typeof data9;
 let coerced6 = undefined;
 if(dataType6 == 'object' && Array.isArray(data9) && data9.length == 1){
 data9 = data9[0];
 dataType6 = typeof data9;
-if(typeof data9 == "number"){
+if(typeof data9 === "boolean"){
 coerced6 = data9;
 }
 }
 if(!(coerced6 !== undefined)){
-if(dataType6 == "boolean" || data9 === null
-              || (dataType6 == "string" && data9 && data9 == +data9)){
-coerced6 = +data9;
+if(data9 === "false" || data9 === 0 || data9 === null){
+coerced6 = false;
+}
+else if(data9 === "true" || data9 === 1){
+coerced6 = true;
 }
 else {
-const err25 = {instancePath:instancePath+"/observer/port",schemaPath:"#/properties/observer/properties/port/type",keyword:"type",params:{type: "number"},message:"must be number"};
+const err25 = {instancePath:instancePath+"/observer/active",schemaPath:"#/properties/observer/properties/active/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
 if(vErrors === null){
 vErrors = [err25];
 }
@@ -480,15 +482,31 @@ errors++;
 }
 if(coerced6 !== undefined){
 data9 = coerced6;
-if(data7 !== undefined){
-data7["port"] = coerced6;
+if(data8 !== undefined){
+data8["active"] = coerced6;
 }
 }
 }
 }
+if(data8.port !== undefined){
+let data10 = data8.port;
+if(!(typeof data10 == "number")){
+let dataType7 = typeof data10;
+let coerced7 = undefined;
+if(dataType7 == 'object' && Array.isArray(data10) && data10.length == 1){
+data10 = data10[0];
+dataType7 = typeof data10;
+if(typeof data10 == "number"){
+coerced7 = data10;
+}
+}
+if(!(coerced7 !== undefined)){
+if(dataType7 == "boolean" || data10 === null
+              || (dataType7 == "string" && data10 && data10 == +data10)){
+coerced7 = +data10;
 }
 else {
-const err26 = {instancePath:instancePath+"/observer",schemaPath:"#/properties/observer/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err26 = {instancePath:instancePath+"/observer/port",schemaPath:"#/properties/observer/properties/port/type",keyword:"type",params:{type: "number"},message:"must be number"};
 if(vErrors === null){
 vErrors = [err26];
 }
@@ -498,10 +516,17 @@ vErrors.push(err26);
 errors++;
 }
 }
-if(data.puppeteerLaunchOptions !== undefined){
-let data10 = data.puppeteerLaunchOptions;
-if(!(data10 && typeof data10 == "object" && !Array.isArray(data10))){
-const err27 = {instancePath:instancePath+"/puppeteerLaunchOptions",schemaPath:"#/properties/puppeteerLaunchOptions/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(coerced7 !== undefined){
+data10 = coerced7;
+if(data8 !== undefined){
+data8["port"] = coerced7;
+}
+}
+}
+}
+}
+else {
+const err27 = {instancePath:instancePath+"/observer",schemaPath:"#/properties/observer/type",keyword:"type",params:{type: "object"},message:"must be object"};
 if(vErrors === null){
 vErrors = [err27];
 }
@@ -511,25 +536,10 @@ vErrors.push(err27);
 errors++;
 }
 }
-if(data.concurrency !== undefined){
-let data11 = data.concurrency;
-if(!((typeof data11 == "number") && (!(data11 % 1) && !isNaN(data11)))){
-let dataType7 = typeof data11;
-let coerced7 = undefined;
-if(dataType7 == 'object' && Array.isArray(data11) && data11.length == 1){
-data11 = data11[0];
-dataType7 = typeof data11;
-if((typeof data11 == "number") && (!(data11 % 1) && !isNaN(data11))){
-coerced7 = data11;
-}
-}
-if(!(coerced7 !== undefined)){
-if(dataType7 === "boolean" || data11 === null
-              || (dataType7 === "string" && data11 && data11 == +data11 && !(data11 % 1))){
-coerced7 = +data11;
-}
-else {
-const err28 = {instancePath:instancePath+"/concurrency",schemaPath:"#/properties/concurrency/type",keyword:"type",params:{type: "integer"},message:"must be integer"};
+if(data.puppeteerLaunchOptions !== undefined){
+let data11 = data.puppeteerLaunchOptions;
+if(!(data11 && typeof data11 == "object" && !Array.isArray(data11))){
+const err28 = {instancePath:instancePath+"/puppeteerLaunchOptions",schemaPath:"#/properties/puppeteerLaunchOptions/type",keyword:"type",params:{type: "object"},message:"must be object"};
 if(vErrors === null){
 vErrors = [err28];
 }
@@ -539,16 +549,8 @@ vErrors.push(err28);
 errors++;
 }
 }
-if(coerced7 !== undefined){
-data11 = coerced7;
-if(data !== undefined){
-data["concurrency"] = coerced7;
-}
-}
-}
-}
-if(data.inspectConcurrency !== undefined){
-let data12 = data.inspectConcurrency;
+if(data.concurrency !== undefined){
+let data12 = data.concurrency;
 if(!((typeof data12 == "number") && (!(data12 % 1) && !isNaN(data12)))){
 let dataType8 = typeof data12;
 let coerced8 = undefined;
@@ -565,7 +567,7 @@ if(dataType8 === "boolean" || data12 === null
 coerced8 = +data12;
 }
 else {
-const err29 = {instancePath:instancePath+"/inspectConcurrency",schemaPath:"#/properties/inspectConcurrency/type",keyword:"type",params:{type: "integer"},message:"must be integer"};
+const err29 = {instancePath:instancePath+"/concurrency",schemaPath:"#/properties/concurrency/type",keyword:"type",params:{type: "integer"},message:"must be integer"};
 if(vErrors === null){
 vErrors = [err29];
 }
@@ -578,13 +580,30 @@ errors++;
 if(coerced8 !== undefined){
 data12 = coerced8;
 if(data !== undefined){
-data["inspectConcurrency"] = coerced8;
+data["concurrency"] = coerced8;
 }
 }
 }
-if(typeof data12 == "number"){
-if(data12 < 1 || isNaN(data12)){
-const err30 = {instancePath:instancePath+"/inspectConcurrency",schemaPath:"#/properties/inspectConcurrency/minimum",keyword:"minimum",params:{comparison: ">=", limit: 1},message:"must be >= 1"};
+}
+if(data.inspectConcurrency !== undefined){
+let data13 = data.inspectConcurrency;
+if(!((typeof data13 == "number") && (!(data13 % 1) && !isNaN(data13)))){
+let dataType9 = typeof data13;
+let coerced9 = undefined;
+if(dataType9 == 'object' && Array.isArray(data13) && data13.length == 1){
+data13 = data13[0];
+dataType9 = typeof data13;
+if((typeof data13 == "number") && (!(data13 % 1) && !isNaN(data13))){
+coerced9 = data13;
+}
+}
+if(!(coerced9 !== undefined)){
+if(dataType9 === "boolean" || data13 === null
+              || (dataType9 === "string" && data13 && data13 == +data13 && !(data13 % 1))){
+coerced9 = +data13;
+}
+else {
+const err30 = {instancePath:instancePath+"/inspectConcurrency",schemaPath:"#/properties/inspectConcurrency/type",keyword:"type",params:{type: "integer"},message:"must be integer"};
 if(vErrors === null){
 vErrors = [err30];
 }
@@ -594,28 +613,16 @@ vErrors.push(err30);
 errors++;
 }
 }
-}
-if(data.defaultLang !== undefined){
-let data13 = data.defaultLang;
-if(typeof data13 !== "string"){
-let dataType9 = typeof data13;
-let coerced9 = undefined;
-if(dataType9 == 'object' && Array.isArray(data13) && data13.length == 1){
-data13 = data13[0];
-dataType9 = typeof data13;
-if(typeof data13 === "string"){
-coerced9 = data13;
+if(coerced9 !== undefined){
+data13 = coerced9;
+if(data !== undefined){
+data["inspectConcurrency"] = coerced9;
 }
 }
-if(!(coerced9 !== undefined)){
-if(dataType9 == "number" || dataType9 == "boolean"){
-coerced9 = "" + data13;
 }
-else if(data13 === null){
-coerced9 = "";
-}
-else {
-const err31 = {instancePath:instancePath+"/defaultLang",schemaPath:"#/properties/defaultLang/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(typeof data13 == "number"){
+if(data13 < 1 || isNaN(data13)){
+const err31 = {instancePath:instancePath+"/inspectConcurrency",schemaPath:"#/properties/inspectConcurrency/minimum",keyword:"minimum",params:{comparison: ">=", limit: 1},message:"must be >= 1"};
 if(vErrors === null){
 vErrors = [err31];
 }
@@ -625,16 +632,9 @@ vErrors.push(err31);
 errors++;
 }
 }
-if(coerced9 !== undefined){
-data13 = coerced9;
-if(data !== undefined){
-data["defaultLang"] = coerced9;
 }
-}
-}
-}
-if(data.defaultTimezone !== undefined){
-let data14 = data.defaultTimezone;
+if(data.defaultLang !== undefined){
+let data14 = data.defaultLang;
 if(typeof data14 !== "string"){
 let dataType10 = typeof data14;
 let coerced10 = undefined;
@@ -653,7 +653,7 @@ else if(data14 === null){
 coerced10 = "";
 }
 else {
-const err32 = {instancePath:instancePath+"/defaultTimezone",schemaPath:"#/properties/defaultTimezone/type",keyword:"type",params:{type: "string"},message:"must be string"};
+const err32 = {instancePath:instancePath+"/defaultLang",schemaPath:"#/properties/defaultLang/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err32];
 }
@@ -666,32 +666,32 @@ errors++;
 if(coerced10 !== undefined){
 data14 = coerced10;
 if(data !== undefined){
-data["defaultTimezone"] = coerced10;
+data["defaultLang"] = coerced10;
 }
 }
 }
 }
-if(data.onlySameHost !== undefined){
-let data15 = data.onlySameHost;
-if(typeof data15 !== "boolean"){
+if(data.defaultTimezone !== undefined){
+let data15 = data.defaultTimezone;
+if(typeof data15 !== "string"){
 let dataType11 = typeof data15;
 let coerced11 = undefined;
 if(dataType11 == 'object' && Array.isArray(data15) && data15.length == 1){
 data15 = data15[0];
 dataType11 = typeof data15;
-if(typeof data15 === "boolean"){
+if(typeof data15 === "string"){
 coerced11 = data15;
 }
 }
 if(!(coerced11 !== undefined)){
-if(data15 === "false" || data15 === 0 || data15 === null){
-coerced11 = false;
+if(dataType11 == "number" || dataType11 == "boolean"){
+coerced11 = "" + data15;
 }
-else if(data15 === "true" || data15 === 1){
-coerced11 = true;
+else if(data15 === null){
+coerced11 = "";
 }
 else {
-const err33 = {instancePath:instancePath+"/onlySameHost",schemaPath:"#/properties/onlySameHost/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
+const err33 = {instancePath:instancePath+"/defaultTimezone",schemaPath:"#/properties/defaultTimezone/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err33];
 }
@@ -704,13 +704,13 @@ errors++;
 if(coerced11 !== undefined){
 data15 = coerced11;
 if(data !== undefined){
-data["onlySameHost"] = coerced11;
+data["defaultTimezone"] = coerced11;
 }
 }
 }
 }
-if(data.useHostHeader !== undefined){
-let data16 = data.useHostHeader;
+if(data.onlySameHost !== undefined){
+let data16 = data.onlySameHost;
 if(typeof data16 !== "boolean"){
 let dataType12 = typeof data16;
 let coerced12 = undefined;
@@ -729,7 +729,7 @@ else if(data16 === "true" || data16 === 1){
 coerced12 = true;
 }
 else {
-const err34 = {instancePath:instancePath+"/useHostHeader",schemaPath:"#/properties/useHostHeader/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
+const err34 = {instancePath:instancePath+"/onlySameHost",schemaPath:"#/properties/onlySameHost/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
 if(vErrors === null){
 vErrors = [err34];
 }
@@ -742,30 +742,32 @@ errors++;
 if(coerced12 !== undefined){
 data16 = coerced12;
 if(data !== undefined){
-data["useHostHeader"] = coerced12;
+data["onlySameHost"] = coerced12;
 }
 }
 }
 }
-if(data.screenshotTimeout !== undefined){
-let data17 = data.screenshotTimeout;
-if(!(typeof data17 == "number")){
+if(data.useHostHeader !== undefined){
+let data17 = data.useHostHeader;
+if(typeof data17 !== "boolean"){
 let dataType13 = typeof data17;
 let coerced13 = undefined;
 if(dataType13 == 'object' && Array.isArray(data17) && data17.length == 1){
 data17 = data17[0];
 dataType13 = typeof data17;
-if(typeof data17 == "number"){
+if(typeof data17 === "boolean"){
 coerced13 = data17;
 }
 }
 if(!(coerced13 !== undefined)){
-if(dataType13 == "boolean" || data17 === null
-              || (dataType13 == "string" && data17 && data17 == +data17)){
-coerced13 = +data17;
+if(data17 === "false" || data17 === 0 || data17 === null){
+coerced13 = false;
+}
+else if(data17 === "true" || data17 === 1){
+coerced13 = true;
 }
 else {
-const err35 = {instancePath:instancePath+"/screenshotTimeout",schemaPath:"#/properties/screenshotTimeout/type",keyword:"type",params:{type: "number"},message:"must be number"};
+const err35 = {instancePath:instancePath+"/useHostHeader",schemaPath:"#/properties/useHostHeader/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
 if(vErrors === null){
 vErrors = [err35];
 }
@@ -778,13 +780,13 @@ errors++;
 if(coerced13 !== undefined){
 data17 = coerced13;
 if(data !== undefined){
-data["screenshotTimeout"] = coerced13;
+data["useHostHeader"] = coerced13;
 }
 }
 }
 }
-if(data.maxAnimationFrames !== undefined){
-let data18 = data.maxAnimationFrames;
+if(data.screenshotTimeout !== undefined){
+let data18 = data.screenshotTimeout;
 if(!(typeof data18 == "number")){
 let dataType14 = typeof data18;
 let coerced14 = undefined;
@@ -801,7 +803,7 @@ if(dataType14 == "boolean" || data18 === null
 coerced14 = +data18;
 }
 else {
-const err36 = {instancePath:instancePath+"/maxAnimationFrames",schemaPath:"#/properties/maxAnimationFrames/type",keyword:"type",params:{type: "number"},message:"must be number"};
+const err36 = {instancePath:instancePath+"/screenshotTimeout",schemaPath:"#/properties/screenshotTimeout/type",keyword:"type",params:{type: "number"},message:"must be number"};
 if(vErrors === null){
 vErrors = [err36];
 }
@@ -814,19 +816,55 @@ errors++;
 if(coerced14 !== undefined){
 data18 = coerced14;
 if(data !== undefined){
-data["maxAnimationFrames"] = coerced14;
+data["screenshotTimeout"] = coerced14;
 }
 }
 }
 }
+if(data.maxAnimationFrames !== undefined){
+let data19 = data.maxAnimationFrames;
+if(!(typeof data19 == "number")){
+let dataType15 = typeof data19;
+let coerced15 = undefined;
+if(dataType15 == 'object' && Array.isArray(data19) && data19.length == 1){
+data19 = data19[0];
+dataType15 = typeof data19;
+if(typeof data19 == "number"){
+coerced15 = data19;
+}
+}
+if(!(coerced15 !== undefined)){
+if(dataType15 == "boolean" || data19 === null
+              || (dataType15 == "string" && data19 && data19 == +data19)){
+coerced15 = +data19;
 }
 else {
-const err37 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err37 = {instancePath:instancePath+"/maxAnimationFrames",schemaPath:"#/properties/maxAnimationFrames/type",keyword:"type",params:{type: "number"},message:"must be number"};
 if(vErrors === null){
 vErrors = [err37];
 }
 else {
 vErrors.push(err37);
+}
+errors++;
+}
+}
+if(coerced15 !== undefined){
+data19 = coerced15;
+if(data !== undefined){
+data["maxAnimationFrames"] = coerced15;
+}
+}
+}
+}
+}
+else {
+const err38 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err38];
+}
+else {
+vErrors.push(err38);
 }
 errors++;
 }

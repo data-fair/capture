@@ -22,7 +22,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the dev environment.
 
 Build and run the docker image:
 
-    docker buildx build -t capture --progress plain --load . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e SECRET_CAPTURE=capture -e HELMET_ACTIVE=false -e PORT=5607 --name capture capture
+    docker buildx build -t capture --progress plain --load . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e SECRET_CAPTURE=capture -e SECRET_INSPECT=inspect -e HELMET_ACTIVE=false -e PORT=5607 --name capture capture
 
 Check the service with these examples (in the dev environment, replace 5607 with `DEV_API_PORT` from `.env`):
 
@@ -36,14 +36,16 @@ Check the service with these examples (in the dev environment, replace 5607 with
   - [animated gif screenshot](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&target=http://localhost:5607/test/resources/test-anim.html)
   - [animated gif screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test-anim.html)
   - [fallback to standard screenshot with custom filename](http://localhost:5607/api/v1/screenshot?key=capture&type=gif&filename=test.gif&target=http://localhost:5607/test/resources/test1.html)
-  - [inspect: screenshot and render report as JSON (internal use)](http://localhost:5607/api/v1/inspect?key=capture&target=http://localhost:5607/test/resources/test-errors.html)
-  - [inspect with an error declared by the page](http://localhost:5607/api/v1/inspect?key=capture&target=http://localhost:5607/test/resources/test-declared-error.html&declaredErrorUrl=http://localhost:5607/test/app/error), `declaredErrorUrl` (same host as `target`, query ignored) receives the page's POST requests: capture answers them with 204 instead of sending them, and reports their `message` under `declaredErrors`
+  - [inspect: screenshot and render report as JSON (internal use)](http://localhost:5607/api/v1/inspect?key=inspect&target=http://localhost:5607/test/resources/test-errors.html)
+  - [inspect with an error declared by the page](http://localhost:5607/api/v1/inspect?key=inspect&target=http://localhost:5607/test/resources/test-declared-error.html&declaredErrorUrl=http://localhost:5607/test/app/error), `declaredErrorUrl` (same host as `target`, query ignored) receives the page's POST requests: capture answers them with 204 instead of sending them, and reports their `message` under `declaredErrors`
   - [remote url with a webgl based map](http://localhost:5617/api/v1/print?key=capture&target=https://staging-koumoul.com/cadastre/parcel?id=56251000AV0142)
 
 ## Configuration
 
 Configuration is in `config/` and can be overridden with environment variables, see `config/custom-environment-variables.cjs`. Notably:
 
+  - `SECRET_CAPTURE` (`secretKeys.capture`, default none): when set, `/screenshot` and `/print` require it in `x-secret-key` from internal callers without a session. Leave it unset while browsers or other services call them directly.
+  - `SECRET_INSPECT` (`secretKeys.inspect`, default none): required in `x-secret-key` on `/inspect` (internal requests only), which is disabled without it. A secret of its own, so that enabling `/inspect` does not lock `/screenshot` and `/print`.
   - `INSPECT_CONCURRENCY` (`inspectConcurrency`, default 1): how many `/inspect` renders may run at the same time, each one holds a browser page; further requests wait for a free slot.
 
 ## Security
