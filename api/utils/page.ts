@@ -91,6 +91,22 @@ export const isSameHost = (url: string, target: string) => {
   }
 }
 
+// options of the /inspect renders
+export type InspectOptions = {
+  onPage?: (page: Page) => void,
+  // POST requests to this URL (query ignored) are answered by capture itself and never reach the
+  // server, their body is handed to onDeclaredError: this is how an application declares an error
+  declaredErrorUrl?: string,
+  onDeclaredError?: (body: string | undefined) => void
+}
+
+const withoutQuery = (url: string) => {
+  const parsed = new URL(url)
+  parsed.search = ''
+  parsed.hash = ''
+  return parsed.href
+}
+
 type OpenPageResult = {
   page: Page,
   animationActivated: boolean,
@@ -106,17 +122,23 @@ async function openInPage (
   viewport: Viewport | undefined,
   animate: boolean,
   timer: Timer,
-  reportFrames: boolean
+  inspect: InspectOptions | undefined
 ): Promise<OpenPageResult> {
+  const reportFrames = !!inspect
   await setPageLocale(page, lang || config.defaultLang, timezone || config.defaultTimezone)
   if (cookies) await page.browserContext().setCookie(...cookies)
   if (viewport) await page.setViewport(viewport)
-  if (reportFrames && config.onlySameHost) {
+  const declaredErrorUrl = inspect?.declaredErrorUrl && withoutQuery(inspect.declaredErrorUrl)
+  if (reportFrames && (config.onlySameHost || declaredErrorUrl)) {
     // cross-host frames are reported by the collector, but their content must not be loaded
     await page.setRequestInterception(true)
     page.on('request', request => {
       if (request.isInterceptResolutionHandled()) return
-      if (request.isNavigationRequest() && request.frame() !== page.mainFrame() && !isSameHost(request.url(), target)) {
+      if (declaredErrorUrl && request.method() === 'POST' && URL.canParse(request.url()) && withoutQuery(request.url()) === declaredErrorUrl) {
+        // a render must not write anything, the declared error is only reported
+        inspect?.onDeclaredError?.(request.postData())
+        request.respond({ status: 204 }).catch(() => {})
+      } else if (config.onlySameHost && request.isNavigationRequest() && request.frame() !== page.mainFrame() && !isSameHost(request.url(), target)) {
         request.abort('blockedbyclient').catch(() => {})
       } else {
         request.continue().catch(() => {})
@@ -159,8 +181,7 @@ export const withPage = async (
   timer: Timer,
   callbackTimeoutMsg: string,
   callback: (result: OpenPageResult) => Promise<void>,
-  reportFrames = false,
-  onPage?: (page: Page) => void) => {
+  inspect?: InspectOptions) => {
   if (target.includes('capture-test-error=true')) {
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
@@ -185,11 +206,11 @@ export const withPage = async (
       }
     }
     debugPage(page)
-    onPage?.(page)
+    inspect?.onPage?.(page)
     timer.step('newPage')
 
     const result = await promiseTimeout(
-      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, reportFrames),
+      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, inspect),
       config.screenshotTimeout * 2,
       `Failed to open "${target}" in context before timeout`
     )

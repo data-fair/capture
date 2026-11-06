@@ -24,6 +24,11 @@ export const reportText = (report: RenderReport): string => {
 
   // Console and Network together are bounded, the snapshot has its own budget
   const details: string[] = []
+  // first, the page's own diagnosis is the most useful line
+  if (report.declaredErrors.length) {
+    details.push('### Declared errors')
+    for (const message of report.declaredErrors) details.push(`- ${message}`)
+  }
   if (report.consoleErrors.length || report.pageErrors.length) {
     details.push('### Console')
     for (const entry of report.consoleErrors) {

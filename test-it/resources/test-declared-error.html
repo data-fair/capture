@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Declared error page</title>
+  </head>
+  <body>
+    <h1>Declared error page</h1>
+    <script>
+      // like a data-fair application that finds its configuration broken
+      fetch('/test/app/error?draft=true', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: 'dataset column "missing" not found' }) })
+        .finally(() => setTimeout(() => window.triggerCapture && window.triggerCapture(), 50))
+    </script>
+  </body>
+</html>

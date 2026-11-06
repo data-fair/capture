@@ -20,6 +20,7 @@ export type RenderReport = {
   pageErrors: string[],
   failedRequests: FailedRequest[],
   blockedFrames: string[],
+  declaredErrors: string[],
   snapshot: string,
   verdict: Verdict
 }
@@ -60,6 +61,19 @@ export const createReportCollector = (page: Page, target: string) => {
   const pending: Promise<void>[] = []
   let status: number | undefined
   let statusText: string | undefined
+  const declaredErrors: string[] = []
+
+  // the page itself says it is broken, cf InspectOptions.declaredErrorUrl
+  const declareError = (body: string | undefined) => {
+    let message = body ?? ''
+    try {
+      const parsed = JSON.parse(message)
+      if (parsed && typeof parsed.message === 'string') message = parsed.message
+    } catch (err) {
+      // not JSON, the raw body is the message
+    }
+    declaredErrors.push(message.trim() || '(no message)')
+  }
 
   const sameOrigin = (url: string) => parseOrigin(url) === targetOrigin
 
@@ -135,7 +149,7 @@ export const createReportCollector = (page: Page, target: string) => {
     let verdict: Verdict
     if (new URL(finalUrl, target).pathname.startsWith('/simple-directory/login')) verdict = 'unauthenticated'
     else if (ready === 'timeout') verdict = 'timeout'
-    else if (movedAway || consoleErrors.length || pageErrors.length || failedRequests.length || blockedFrames.length || (status !== undefined && status >= 400)) verdict = 'errors'
+    else if (movedAway || declaredErrors.length || consoleErrors.length || pageErrors.length || failedRequests.length || blockedFrames.length || (status !== undefined && status >= 400)) verdict = 'errors'
     else verdict = 'ok'
 
     return {
@@ -151,10 +165,11 @@ export const createReportCollector = (page: Page, target: string) => {
       pageErrors: pageErrors.slice(0, MAX_ENTRIES).map(e => cut(e)),
       failedRequests: failedRequests.slice(0, MAX_ENTRIES).map(f => ({ ...f, url: cut(f.url), path: cut(f.path), ...(f.errorText ? { errorText: cut(f.errorText) } : {}) })),
       blockedFrames: blockedFrames.slice(0, MAX_ENTRIES),
+      declaredErrors: declaredErrors.slice(0, MAX_ENTRIES).map(e => cut(e)),
       snapshot,
       verdict
     }
   }
 
-  return { finish }
+  return { finish, declareError }
 }

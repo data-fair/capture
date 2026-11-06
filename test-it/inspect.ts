@@ -144,6 +144,28 @@ describe('inspect', () => {
     assert.deepEqual(await pngSize(Buffer.from(res.data.image.data, 'base64')), { width: 1280, height: 3000 })
   })
 
+  it('reports a declared error without sending it', async () => {
+    const res = await inspect('/test/resources/test-declared-error.html', { declaredErrorUrl: origin + '/test/app/error' })
+    assert.equal(res.status, 200)
+    assert.deepEqual(res.data.report.declaredErrors, ['dataset column "missing" not found'])
+    // answered by capture: the 404 the server would give is not there
+    assert.deepEqual(res.data.report.failedRequests, [])
+    assert.equal(res.data.report.verdict, 'errors')
+    assert.match(res.data.text, /### Declared errors\n- dataset column "missing" not found\n/)
+  })
+
+  it('without declaredErrorUrl the error post is a plain request', async () => {
+    const res = await inspect('/test/resources/test-declared-error.html')
+    assert.equal(res.status, 200)
+    assert.deepEqual(res.data.report.declaredErrors, [])
+    assert.deepEqual(res.data.report.failedRequests.map((f: any) => [f.method, f.path, f.status]), [['POST', '/test/app/error', 404]])
+  })
+
+  it('refuses a declaredErrorUrl on another host', async () => {
+    const res = await inspect('/test/resources/test-declared-error.html', { declaredErrorUrl: 'http://example.com/error' })
+    assert.equal(res.status, 400)
+  })
+
   it('refuses without the secret', async () => {
     assert.equal((await inspect('/test/resources/test1.html', {}, {})).status, 401)
     assert.equal((await inspect('/test/resources/test1.html', {}, { 'x-secret-key': 'wrong' })).status, 401)

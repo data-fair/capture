@@ -233,6 +233,13 @@ router.get('/inspect', async (req, res) => {
     ? mobileViewport
     : { width: viewportDimension(req.query.width, desktopViewport.width), height: viewportDimension(req.query.height, desktopViewport.height) }
 
+  // the page may POST its own error diagnosis there, it is reported instead of being sent
+  const declaredErrorUrl = req.query.declaredErrorUrl
+  if (declaredErrorUrl !== undefined) {
+    if (typeof declaredErrorUrl !== 'string' || !URL.canParse(declaredErrorUrl)) throw httpError(400, 'invalid declaredErrorUrl')
+    if (!pageUtils.isSameHost(declaredErrorUrl, target)) throw httpError(400, 'declaredErrorUrl must be on the host of target')
+  }
+
   const cookies = Object.keys(req.cookies ?? {}).map(name => ({ name, value: req.cookies[name], url: target })) as any
   const timer = createTimer(req.originalUrl, 'inspect')
 
@@ -261,8 +268,11 @@ router.get('/inspect', async (req, res) => {
         timer.type = 'inspect'
         res.json({ image: { data: Buffer.from(buffer).toString('base64'), mediaType: 'image/png' }, text: reportText(report), report })
       },
-      true,
-      page => { collector = createReportCollector(page, target) }
+      {
+        onPage: page => { collector = createReportCollector(page, target) },
+        declaredErrorUrl,
+        onDeclaredError: body => collector?.declareError(body)
+      }
     )
   })
   timer.finish()
