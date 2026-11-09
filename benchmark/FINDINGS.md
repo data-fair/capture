@@ -29,6 +29,35 @@ tables below are from the 8-run pass. Raw JSON is in `results/` (git-ignored).
   Keep the two close when upgrading puppeteer.
 - **Declined**: untagged PDFs (§4). Accessibility comes first.
 
+## Steady load on real applications (2026-11-09)
+
+The two images (master vs this branch), `CONCURRENCY=5`, 8 clients looping for 60 s over the 66
+public applications of opendata.koumoul.com (52 call `triggerCapture`), 1050×450, 2 runs per
+image in alternating order, a fresh container each run:
+
+| | master | this branch |
+|---|---|---|
+| captures per minute | 145, 160 | **163, 170** (+~10%) |
+| p50 latency, apps with triggerCapture | 2221, 1965 ms | 1930, 1904 ms |
+| p50 latency, apps without | 4154, 3615 ms | **2646, 2627 ms** (−30%) |
+| CPU per capture (container) | 2966, 2841 ms | 2900, 3004 ms |
+| cores busy | 7.2, 7.6 | 7.9, 8.5 |
+| memory peak (cgroup) | 2815, 2927 MB | 2873, 2858 MB |
+
+**The instance is CPU-bound on real applications, and the CPU goes to WebGL maps.** Measured app
+by app (browser process tree, sequential): 3.4 s of CPU per capture on average. 21 of the 66
+applications use WebGL (maplibre maps: admin-divs-levels, data-fair-geo-shapes, carto-stats,
+admin-divs-catchment, infos-parcelles, infos-loc, carto-explore, atelier-carto...), and they take
+**90% of the CPU**, 5-18 s each. Without a GPU, Chrome renders WebGL in software (SwiftShader).
+The other 45 applications average ~0.5 s. Consequences:
+- the shorter waits mostly cut latency. Throughput only gains ~10%, because the CPU is the limit;
+- the browser savings of chrome-headless-shell (~100 ms of CPU per light capture) are a few
+  percent of a real mix. Its memory gain shows at idle, not at the peak, which is set by the
+  renderers of heavy pages;
+- **the next lever is the WebGL maps**: a capture mode in the map applications (no
+  transitions or fly-to, `fadeDuration: 0`, `triggerCapture` on the map's `idle` event), or
+  measuring Chrome's other software GL backends.
+
 ## TL;DR
 
 Where a capture's time goes today, for a typical data-fair page that does not call
