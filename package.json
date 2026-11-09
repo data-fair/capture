@@ -13,7 +13,8 @@
     "lint-fix": "eslint --fix .",
     "check-types": "tsc",
     "quality": "npm run lint && npm run build-types && npm run check-types && npm run test && npm audit --omit=dev --audit-level=critical",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "benchmark": "node --disable-warning=ExperimentalWarning benchmark/index.ts"
   },
   "imports": {
     "#config": "./api/config.ts"

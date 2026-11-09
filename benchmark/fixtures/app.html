@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Bench app</title>
+  <!-- a data-fair application in miniature: a script bundle, then sequential API calls, then a
+       chart and a table rendered by JS. Query: trigger=1 calls window.triggerCapture when done,
+       late=ms renders that long after the last response (no network in between) -->
+  <script src="/asset.js?kb=400&delay=80"></script>
+  <style>
+    body { font-family: sans-serif; margin: 16px; }
+    table { border-collapse: collapse; font-size: 12px; }
+    td, th { border: 1px solid #ccc; padding: 2px 6px; }
+    .card { box-shadow: 0 2px 8px rgba(0,0,0,.3); border-radius: 8px; padding: 8px; margin-bottom: 12px; background: linear-gradient(#fff, #eef); }
+  </style>
+</head>
+<body>
+  <h1>Bench app</h1>
+  <div class="card" id="chart"></div>
+  <div class="card" id="table"></div>
+  <script>
+    const params = new URLSearchParams(location.search)
+    const n = Number(params.get('n') || 400)
+    const late = Number(params.get('late') || 0)
+    const apiDelay = Number(params.get('apiDelay') || 150)
+    const get = (path) => fetch(path).then(r => r.json())
+    const render = (points, more) => {
+      const w = 760; const h = 300
+      const max = Math.max(...points.map(p => p.y))
+      let svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">`
+      points.forEach((p, i) => {
+        const bw = w / points.length
+        svg += `<rect x="${i * bw}" y="${h - p.y / max * h}" width="${bw * 0.8}" height="${p.y / max * h}" fill="hsl(${i % 360},60%,50%)"><title>${p.label}</title></rect>`
+      })
+      svg += '</svg>'
+      document.getElementById('chart').innerHTML = svg
+      let table = '<table><tr><th>x</th><th>y</th><th>label</th></tr>'
+      more.slice(0, 60).forEach(p => { table += `<tr><td>${p.x}</td><td>${p.y}</td><td>${p.label}</td></tr>` })
+      table += '</table>'
+      document.getElementById('table').innerHTML = table
+      document.body.dataset.done = '1'
+      if (params.get('trigger') && window.triggerCapture) window.triggerCapture()
+    }
+    ;(async () => {
+      window.__lib.f3(1000, 2)
+      const meta = await get(`/data?n=5&delay=${apiDelay}`)
+      const points = await get(`/data?n=${n}&delay=${apiDelay}`)
+      const more = await get(`/data?n=60&delay=${apiDelay}`)
+      if (late) setTimeout(() => render(points, more), late)
+      else render(points, more)
+    })()
+  </script>
+</body>
+</html>
