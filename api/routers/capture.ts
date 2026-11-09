@@ -281,15 +281,17 @@ router.get('/inspect', async (req, res) => {
       `Failed to inspect page "${target}" before timeout`,
       async ({ page, ready }) => {
         const report = await collector!.finish(ready)
-        let buffer
+        // the base64 string of the browser as is: decoding it to bytes to encode it back to base64
+        // would only copy megabytes on the main thread
+        let data
         if (fullPage) {
           const height = await page.evaluate(() => document.documentElement.scrollHeight)
-          buffer = await page.screenshot({ captureBeyondViewport: true, optimizeForSpeed: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
+          data = await page.screenshot({ encoding: 'base64', captureBeyondViewport: true, optimizeForSpeed: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
         } else {
-          buffer = await page.screenshot()
+          data = await page.screenshot({ encoding: 'base64' })
         }
         timer.type = 'inspect'
-        res.json({ image: { data: Buffer.from(buffer).toString('base64'), mediaType: 'image/png' }, text: reportText(report), report })
+        res.json({ image: { data, mediaType: 'image/png' }, text: reportText(report), report })
       },
       {
         onPage: page => { collector = createReportCollector(page, target) },
