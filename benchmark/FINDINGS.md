@@ -18,9 +18,15 @@ tables below are from the 8-run pass. Raw JSON is in `results/` (git-ignored).
   fast encoding above `pngFastEncodingPixels` and for full-page captures (§2), and the fixes of
   `type=jpg` (PNG bytes labelled `image/jpeg`) and of `type=gif` on a page without
   animation (PNG bytes labelled `image/gif`).
-- **Approved, to do**: chrome-headless-shell (§3), the GIF encoding in a piscina worker (§5),
-  the console listener behind `DEBUG` (§6), skipping abandoned requests and bounding the
-  queue (§7).
+- **Done too**: the debug listeners only when `DEBUG` is set (§6); abandoned captures skipped
+  and the contexts queue bounded (`config.queue`, §7); the GIF encoding in piscina worker
+  threads (`config.gifThreads`, §5). Event loop probe during a GIF: p90 83 → 1.2 ms, max
+  131 → 4.6 ms. chrome-headless-shell (§3): Debian's `chromium-headless-shell` in the image,
+  puppeteer's download in development, tests and CI. Image 1.12 GB → 904 MB, container memory
+  324 → 142 MiB idle and ~780 → ~550 MiB under 10 concurrent captures. It runs sandboxed with
+  `seccomp.json` (renderers in their own user namespace). Its version comes from Debian's
+  security updates, not from puppeteer: puppeteer 25.16 expects 156, trixie ships 156.0.8078.79.
+  Keep the two close when upgrading puppeteer.
 - **Declined**: untagged PDFs (§4). Accessibility comes first.
 
 ## TL;DR

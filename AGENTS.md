@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Capture renders Web pages with puppeteer (google-chrome) and returns screenshots (png, jpg,
+Capture renders Web pages with puppeteer (chrome-headless-shell) and returns screenshots (png, jpg,
 animated gif through gifsicle) or prints (pdf, html). API routes in `api/routers/capture.ts`,
 browser contexts pool in `api/utils/page.ts`, config in `config/` (types generated in
 `config/type/` by `npm run build-types`).
@@ -42,7 +42,8 @@ Branch names: letters, digits, `.`, `_`, `-`, no `/`, and `capture_<branch>` at 
 ## Testing
 
 `node:test` suites in `test-it/`, they start the API in-process on `TEST_API_PORT` (`.env`) and
-need google-chrome-stable and gifsicle on the machine.
+need gifsicle on the machine and puppeteer's chrome-headless-shell
+(`npx puppeteer browsers install chrome-headless-shell`).
 
 ```bash
 npm test                                   # all tests

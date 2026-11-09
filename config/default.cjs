@@ -32,10 +32,13 @@ module.exports = {
   },
   maxAnimationFrames: 1800, // 2 minutes at 15fps
   gifThreads: 2, // worker threads encoding the animated captures, also the max number of gifs encoded at the same time
+  // chrome-headless-shell (Debian's chromium-headless-shell package in the image): the "old"
+  // headless Chromium, without the browser UI layer. Compared to google-chrome-stable it uses half
+  // the memory and 20-45% less CPU per capture (cf benchmark/FINDINGS.md)
   puppeteerLaunchOptions: {
-    executablePath: '/usr/bin/google-chrome-stable',
+    executablePath: '/usr/lib/chromium/chromium-headless-shell',
     args: [],
-    headless: true
+    headless: 'shell'
   },
   observer: {
     active: true,

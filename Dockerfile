@@ -15,14 +15,12 @@ FROM base AS nativedeps
 ARG TARGETARCH
 RUN echo "Building for architecture $TARGETARCH"
 
-# Install chrome and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
+# Install chromium-headless-shell (Debian's build of the "old" headless Chromium, amd64 and arm64,
+# security updates with the rest of the distribution) and fonts to support major charsets
+# (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y wget gnupg ca-certificates && \
-    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg && \
-    sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] https://dl-ssl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \
-    apt-get update && \
-    apt-get install -y google-chrome-stable gifsicle fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-khmeros fonts-kacst-one fonts-freefont-ttf libxss1 dbus dbus-x11 --no-install-recommends && \
+    apt-get install -y chromium-headless-shell gifsicle wget ca-certificates fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-khmeros fonts-kacst-one fonts-freefont-ttf dbus dbus-x11 --no-install-recommends && \
     service dbus start
 
 ENV DBUS_SESSION_BUS_ADDRESS=autolaunch:
@@ -37,9 +35,10 @@ RUN case "$TARGETARCH" in \
     wget -q -O /usr/local/bin/dumb-init "https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_$DUMB_INIT_ARCH" && \
     chmod +x /usr/local/bin/dumb-init
 
-# cleanup (wget stays: google-chrome-stable depends on it, purging it removes chrome)
-RUN apt-get clean
-RUN apt-get purge -y --auto-remove gnupg apt-transport-https
+# cleanup: wget was only needed to download dumb-init
+RUN apt-get purge -y --auto-remove wget && \
+    test -x /usr/lib/chromium/chromium-headless-shell && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # skip the browser download when installing puppeteer
 ENV PUPPETEER_SKIP_DOWNLOAD=true
