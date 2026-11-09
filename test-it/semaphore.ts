@@ -49,4 +49,49 @@ describe('semaphore', () => {
     assert.equal(await p2, 'next')
     assert.equal(sem.pending(), 0)
   })
+
+  it('rejects beyond maxWaiting, without disturbing the queue', async () => {
+    const sem = createSemaphore(1, { maxWaiting: 1 })
+    const first = deferred<string>()
+    const p1 = sem.run(() => first.promise)
+    const p2 = sem.run(async () => 'second')
+    await assert.rejects(sem.run(async () => 'third'), (err: any) => err.code === 'queue-full')
+    assert.equal(sem.pending(), 1)
+    first.resolve('first')
+    assert.equal(await p1, 'first')
+    assert.equal(await p2, 'second')
+  })
+
+  it('rejects a call that waited longer than maxWaitTime, and takes it out of the queue', async () => {
+    const sem = createSemaphore(1, { maxWaitTime: 50 })
+    const first = deferred<string>()
+    const p1 = sem.run(() => first.promise)
+    let lateStarted = false
+    await assert.rejects(sem.run(async () => { lateStarted = true }), (err: any) => err.code === 'queue-timeout')
+    assert.equal(sem.pending(), 0)
+    first.resolve('first')
+    await p1
+    await tick()
+    assert.equal(lateStarted, false)
+    assert.equal(sem.active(), 0)
+  })
+
+  it('rejects an aborted call, before or while it waits', async () => {
+    const sem = createSemaphore(1)
+    const first = deferred<string>()
+    const p1 = sem.run(() => first.promise)
+    const controller = new AbortController()
+    let abortedStarted = false
+    const p2 = sem.run(async () => { abortedStarted = true }, controller.signal)
+    await tick()
+    controller.abort()
+    await assert.rejects(p2, (err: any) => err.code === 'aborted')
+    assert.equal(sem.pending(), 0)
+    await assert.rejects(sem.run(async () => {}, controller.signal), (err: any) => err.code === 'aborted')
+    first.resolve('first')
+    await p1
+    await tick()
+    assert.equal(abortedStarted, false)
+    assert.equal(sem.active(), 0)
+  })
 })

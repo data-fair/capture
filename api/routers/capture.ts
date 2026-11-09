@@ -13,8 +13,9 @@ import type { PaperFormat, PDFOptions } from 'puppeteer'
 
 const debug = debugModule('capture')
 
-// /inspect renders are expensive, a small number of them run at the same time
-const inspectSemaphore = createSemaphore(config.inspectConcurrency)
+// /inspect renders are expensive, a small number of them run at the same time (each one then takes
+// a capture slot like the other routes)
+const inspectSemaphore = createSemaphore(config.inspectConcurrency, config.queue)
 
 export const router = express.Router()
 
@@ -267,9 +268,8 @@ router.get('/inspect', async (req, res) => {
 
   let collector: ReturnType<typeof createReportCollector> | undefined
   const signal = clientSignal(res)
+  // the client may leave while waiting for a slot: the signal drops the render
   await inspectSemaphore.run(async () => {
-    // the client may have left while waiting for a slot, no need to render for nobody
-    if (req.socket.destroyed || res.destroyed) return
     await pageUtils.withPage(
       target,
       lang,
@@ -300,6 +300,6 @@ router.get('/inspect', async (req, res) => {
       },
       signal
     )
-  })
+  }, signal).catch(err => { throw pageUtils.slotError(err) })
   timer.finish()
 })

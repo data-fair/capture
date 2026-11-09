@@ -1,11 +1,11 @@
 import config from '#config'
 import puppeteer, { type Viewport, type Browser, type BrowserContext, type Page, type CookieData } from 'puppeteer'
-import genericPool, { type Factory, type Pool } from 'generic-pool'
 import { contextsCleanups } from './metrics.ts'
 import debugModule from 'debug'
 import log from '@data-fair/lib-node/log.js'
 import { Timer } from './timer.ts'
 import { httpError } from '@data-fair/lib-express'
+import { createSemaphore, SemaphoreError } from './semaphore.ts'
 import type { Ready } from './report.ts'
 
 const debug = debugModule('capture')
@@ -13,42 +13,20 @@ const debug = debugModule('capture')
 let _closed = false
 
 let _browser: Browser
-let _contextPool: Pool<BrowserContext>
 
-export function contextPool () {
-  if (!_contextPool) throw new Error('contextPool not initialized')
-  return _contextPool
-}
+// the captures running at the same time, each one in its own incognito context. The others wait
+// in a bounded queue (config.queue)
+export const captureSlots = createSemaphore(config.concurrency, config.queue)
 
 export const start = async () => {
   log.info('init puppeteer browser', { launchOptions: config.puppeteerLaunchOptions })
   _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
-  const contextFactory: Factory<BrowserContext> = {
-    async create () {
-    // create pages in incognito contexts so that cookies are not shared
-    // each context is used sequentially only because of cookies or other states conflicts
-      return _browser.createBrowserContext({})
-    },
-    async destroy (context) {
-      await context.close()
-    }
-  }
-  _contextPool = genericPool.createPool(contextFactory, {
-    max: config.concurrency,
-    maxWaitingClients: config.queue.maxWaiting,
-    acquireTimeoutMillis: config.queue.maxWaitTime
-  })
 
   // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
+  // the captures running in the lost browser fail, the next ones use the new browser
   _browser.on('disconnected', async () => {
     if (!_closed) {
       log.error('browser was disconnected, reconnect', { code: 'browser-disconnected' })
-      try {
-        await _contextPool.drain()
-        _contextPool.clear()
-      } catch (err) {
-        log.error('failure while draining the replaced contexts pool', { code: 'contexts-pool-drain', err })
-      }
       start().catch(err => log.error('failure while restarting the browser', { code: 'browser-restart', err }))
     }
   })
@@ -57,10 +35,6 @@ export const start = async () => {
 export const stop = async () => {
   _closed = true
   if (_browser) await _browser.close()
-  if (_contextPool) {
-    await _contextPool.drain()
-    _contextPool.clear()
-  }
 }
 
 const debugPage = (page: Page) => {
@@ -203,17 +177,14 @@ const unlessAborted = async <T>(promise: Promise<T>, signal: AbortSignal | undef
   }
 }
 
-// a full queue or a long wait for a context mean an overloaded service: better a quick 503
-// that the caller can retry than a response after the proxy has given up
-const acquireContext = async () => {
-  try {
-    return await _contextPool.acquire()
-  } catch (err: any) {
-    if (err.name === 'TimeoutError' || err.message?.includes('max waitingClients')) {
-      throw httpError(503, 'the capture service is overloaded, retry later')
-    }
-    throw err
+// a full queue or a long wait for a slot mean an overloaded service: better a quick 503 that the
+// caller can retry than a response after it has given up
+export const slotError = (err: unknown) => {
+  if (err instanceof SemaphoreError) {
+    if (err.code === 'aborted') return clientGone()
+    return httpError(503, 'the capture service is overloaded, retry later')
   }
+  return err
 }
 
 export const withPage = async (
@@ -233,81 +204,49 @@ export const withPage = async (
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
   }
-  let context, page, openSuccess
   try {
-    debug(`[${target}] use incognito context from pool`)
-    let pageAttempts = 0
-    while (!page) {
-      pageAttempts++
-      if (signal?.aborted) throw clientGone()
-      context = await acquireContext()
+    await captureSlots.run(async () => {
       timer.step('acquire-context')
-      // the client may have left while waiting for a context, no need to render for nobody
-      if (signal?.aborted) {
-        await _contextPool.release(context)
-        throw clientGone()
-      }
+      // a fresh incognito context per capture, closed after it: nothing of a capture (cookies,
+      // localStorage, IndexedDB, cache, service workers) can leak into the next one, whatever
+      // the user it is made for. It costs a few milliseconds
+      const context = await _browser.createBrowserContext()
       try {
-        page = await context.newPage()
-      } catch (err) {
-        if (pageAttempts === config.concurrency) {
-          throw err
-        } else {
-          debug(`[${target}] delete incognito context from pool because it couldn't be used to open a page`)
-          await _contextPool.destroy(context)
-        }
-      }
-    }
-    // the console listener costs 2 CDP round trips per argument of every console message, on the
-    // main thread of the service: only paid when the debug output is enabled (DEBUG=capture)
-    if (debug.enabled) debugPage(page)
-    inspect?.onPage?.(page)
-    timer.step('newPage')
+        const page = await context.newPage()
+        // the console listener costs 2 CDP round trips per argument of every console message, on
+        // the main thread of the service: only paid when the debug output is enabled (DEBUG=capture)
+        if (debug.enabled) debugPage(page)
+        inspect?.onPage?.(page)
+        timer.step('newPage')
 
-    const result = await unlessAborted(promiseTimeout(
-      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, inspect),
-      config.screenshotTimeout * 2,
-      `Failed to open "${target}" in context before timeout`
-    ), signal)
-    timer.step('open-in-page')
-    openSuccess = true
-    await unlessAborted(promiseTimeout(
-      callback(result),
-      result.animationActivated ? config.screenshotTimeout * 2 : config.screenshotTimeout,
-      callbackTimeoutMsg
-    ), signal)
-  } finally {
-    if (page) await safeCleanContext(page, !!openSuccess)
+        const result = await unlessAborted(promiseTimeout(
+          openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, inspect),
+          config.screenshotTimeout * 2,
+          `Failed to open "${target}" in context before timeout`
+        ), signal)
+        timer.step('open-in-page')
+        await unlessAborted(promiseTimeout(
+          callback(result),
+          result.animationActivated ? config.screenshotTimeout * 2 : config.screenshotTimeout,
+          callbackTimeoutMsg
+        ), signal)
+      } finally {
+        await closeContext(context)
+      }
+    }, signal)
+  } catch (err) {
+    throw slotError(err)
   }
   timer.step('close-page')
 }
 
-const cleanContext = async (page: Page) => {
-  // always empty cookies to prevent inheriting them in next use of the context
-  const context = page.browserContext()
-  const cookies = await context.cookies()
-  // deleting them in a single call spares one CDP round trip per cookie, and this
-  // runs inside a 2s timeout that a session's worth of cookies could otherwise eat
-  if (cookies.length) await context.deleteCookie(...cookies)
-  await page.close()
-}
-
-const safeCleanContext = async (page: Page, openSuccess: boolean) => {
-  if (openSuccess) {
-    try {
-      await promiseTimeout(
-        cleanContext(page),
-        2000,
-        'timed out while cleaning page context'
-      )
-      await _contextPool.release(page.browserContext())
-      contextsCleanups.inc()
-    } catch (err) {
-      log.warn('failed to clean page properly, do not reuse this context', { code: 'page-clean', err })
-      await _contextPool.destroy(page.browserContext())
-    }
-  } else {
-    await _contextPool.destroy(page.browserContext())
+const closeContext = async (context: BrowserContext) => {
+  try {
+    await promiseTimeout(context.close(), 5000, 'timed out while closing a browser context')
+    contextsCleanups.inc()
+  } catch (err) {
+    // the browser may be gone (disconnected), or stuck: nothing more to do for this capture
+    log.warn('failed to close a browser context', { code: 'context-close', err })
   }
 }
 

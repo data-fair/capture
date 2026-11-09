@@ -4,8 +4,8 @@
 
 Capture renders Web pages with puppeteer (chrome-headless-shell) and returns screenshots (png, jpg,
 animated gif through gifsicle) or prints (pdf, html). API routes in `api/routers/capture.ts`,
-browser contexts pool in `api/utils/page.ts`, config in `config/` (types generated in
-`config/type/` by `npm run build-types`).
+browser and capture slots in `api/utils/page.ts` (one fresh incognito context per capture), config
+in `config/` (types generated in `config/type/` by `npm run build-types`).
 
 Node.js v24, TypeScript run directly by Node's type stripping (no build step, erasable syntax
 only), Express 5.

@@ -84,6 +84,16 @@ describe('capture', () => {
     assert.ok('wait2-settle' in times)
   })
 
+  it('isolate captures from each other: nothing is left in the storages of the page', async () => {
+    const storageTarget = origin + '/test/resources/test-storage.html'
+    // sequential captures, so that a reused browser context would be reused here
+    for (const mark of ['user-a', 'user-b', 'user-c']) {
+      const res = await ax.get('print', { params: { key, target: storageTarget + '?mark=' + mark, type: 'html' } })
+      assert.equal(res.status, 200)
+      assert.ok(res.data.includes('previous=null'), `a previous capture left a mark: ${res.data.match(/previous=[^<]*/)?.[0]}`)
+    }
+  })
+
   it('drop the captures of clients that left', async () => {
     // more abandoned captures than browser contexts (concurrency 5) of a page that is never idle,
     // each would hold a context for the whole screenshot timeout (2s in tests)

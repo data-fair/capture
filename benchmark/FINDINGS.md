@@ -27,6 +27,14 @@ tables below are from the 8-run pass. Raw JSON is in `results/` (git-ignored).
   `seccomp.json` (renderers in their own user namespace). Its version comes from Debian's
   security updates, not from puppeteer: puppeteer 25.16 expects 156, trixie ships 156.0.8078.79.
   Keep the two close when upgrading puppeteer.
+- **Concurrency review (2026-11-09)**: the contexts pool reused incognito contexts across
+  captures and only deleted cookies, so localStorage, IndexedDB and Cache Storage of one capture
+  were visible to the next one, whatever its user (shown by a test on master). Each capture now
+  runs in a fresh incognito context, closed after it (+3 ms). generic-pool is replaced by the
+  service's own semaphore, with a bounded queue, a wait timeout (30 s, below data-fair's 60 s)
+  and abort while waiting. `/inspect` uses the same mechanism. Infrastructure side: the
+  production pod runs at its 1.5 GiB limit at concurrency 3 on the real mix and uses >5 cores with
+  no CPU request. Concurrency 2 is planned.
 - **Declined**: untagged PDFs (§4). Accessibility comes first.
 
 ## Steady load on real applications (2026-11-09)
