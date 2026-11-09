@@ -18,6 +18,7 @@
     "puppeteerLaunchOptions",
     "concurrency",
     "inspectConcurrency",
+    "queue",
     "defaultLang",
     "defaultTimezone",
     "screenshotTimeout",
@@ -75,6 +76,23 @@
     },
     "concurrency": {
       "type": "integer"
+    },
+    "queue": {
+      "type": "object",
+      "description": "Captures waiting for a browser context",
+      "additionalProperties": false,
+      "required": ["maxWaiting", "maxWaitTime"],
+      "properties": {
+        "maxWaiting": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "beyond this number of waiting captures, new ones are answered by a 503"
+        },
+        "maxWaitTime": {
+          "type": "number",
+          "description": "milliseconds of waiting for a context before a 503"
+        }
+      }
     },
     "inspectConcurrency": {
       "type": "integer",

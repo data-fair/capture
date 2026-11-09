@@ -33,7 +33,11 @@ export const start = async () => {
       await context.close()
     }
   }
-  _contextPool = genericPool.createPool(contextFactory, { max: config.concurrency })
+  _contextPool = genericPool.createPool(contextFactory, {
+    max: config.concurrency,
+    maxWaitingClients: config.queue.maxWaiting,
+    acquireTimeoutMillis: config.queue.maxWaitTime
+  })
 
   // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
   _browser.on('disconnected', async () => {
@@ -166,10 +170,50 @@ async function openInPage (
 }
 
 export const promiseTimeout = async <T>(promise: Promise<T>, ms: number, msg = 'timeout') => {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve, reject) => setTimeout(() => reject(new Error(msg)), ms))
-  ])
+  let timer: NodeJS.Timeout | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve, reject) => { timer = setTimeout(() => reject(new Error(msg)), ms) })
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// the client left (proxy timeout, user gone): the render is stopped, nobody would receive it.
+// 499 is nginx's "client closed request", below 500 it is not logged as a failure
+const clientGone = () => httpError(499, 'client closed the request')
+
+// rejects as soon as the signal aborts, the promise keeps running but its page gets closed
+const unlessAborted = async <T>(promise: Promise<T>, signal: AbortSignal | undefined) => {
+  if (!signal) return promise
+  if (signal.aborted) throw clientGone()
+  let onAbort: (() => void) | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve, reject) => {
+        onAbort = () => reject(clientGone())
+        signal.addEventListener('abort', onAbort, { once: true })
+      })
+    ])
+  } finally {
+    if (onAbort) signal.removeEventListener('abort', onAbort)
+  }
+}
+
+// a full queue or a long wait for a context mean an overloaded service: better a quick 503
+// that the caller can retry than a response after the proxy has given up
+const acquireContext = async () => {
+  try {
+    return await _contextPool.acquire()
+  } catch (err: any) {
+    if (err.name === 'TimeoutError' || err.message?.includes('max waitingClients')) {
+      throw httpError(503, 'the capture service is overloaded, retry later')
+    }
+    throw err
+  }
 }
 
 export const withPage = async (
@@ -182,7 +226,9 @@ export const withPage = async (
   timer: Timer,
   callbackTimeoutMsg: string,
   callback: (result: OpenPageResult) => Promise<void>,
-  inspect?: InspectOptions) => {
+  inspect?: InspectOptions,
+  // aborted when the client closes the request
+  signal?: AbortSignal) => {
   if (target.includes('capture-test-error=true')) {
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
@@ -193,8 +239,14 @@ export const withPage = async (
     let pageAttempts = 0
     while (!page) {
       pageAttempts++
-      context = await _contextPool.acquire()
+      if (signal?.aborted) throw clientGone()
+      context = await acquireContext()
       timer.step('acquire-context')
+      // the client may have left while waiting for a context, no need to render for nobody
+      if (signal?.aborted) {
+        await _contextPool.release(context)
+        throw clientGone()
+      }
       try {
         page = await context.newPage()
       } catch (err) {
@@ -212,18 +264,18 @@ export const withPage = async (
     inspect?.onPage?.(page)
     timer.step('newPage')
 
-    const result = await promiseTimeout(
+    const result = await unlessAborted(promiseTimeout(
       openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, inspect),
       config.screenshotTimeout * 2,
       `Failed to open "${target}" in context before timeout`
-    )
+    ), signal)
     timer.step('open-in-page')
     openSuccess = true
-    await promiseTimeout(
+    await unlessAborted(promiseTimeout(
       callback(result),
       result.animationActivated ? config.screenshotTimeout * 2 : config.screenshotTimeout,
       callbackTimeoutMsg
-    )
+    ), signal)
   } finally {
     if (page) await safeCleanContext(page, !!openSuccess)
   }

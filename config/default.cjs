@@ -17,6 +17,12 @@ module.exports = {
   // ones are encoded fast (2-3x quicker, 1.1-1.5x bigger files)
   pngFastEncodingPixels: 1500000,
   concurrency: 5,
+  // captures waiting for a browser context: beyond maxWaiting, or after maxWaitTime of waiting,
+  // they are answered by a 503 (below the 60s timeout of the reverse proxy)
+  queue: {
+    maxWaiting: 100,
+    maxWaitTime: 20000
+  },
   inspectConcurrency: 1, // concurrent /inspect renders, each one holds a browser page
   defaultLang: 'fr-FR',
   defaultTimezone: 'Europe/Paris',

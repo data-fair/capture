@@ -84,6 +84,22 @@ describe('capture', () => {
     assert.ok('wait2-settle' in times)
   })
 
+  it('drop the captures of clients that left', async () => {
+    // more abandoned captures than browser contexts (concurrency 5) of a page that is never idle,
+    // each would hold a context for the whole screenshot timeout (2s in tests)
+    const busyTarget = origin + '/test/resources/test-busy.html'
+    const abandoned = []
+    for (let i = 0; i < 15; i++) {
+      abandoned.push(ax.get('screenshot', { params: { key, target: busyTarget }, timeout: 300 }).catch(err => err.code))
+    }
+    assert.ok((await Promise.all(abandoned)).every(code => code === 'ECONNABORTED'))
+    // 3 rounds of 5 abandoned captures would delay this one by ~6s if they were rendered
+    const t0 = Date.now()
+    const res = await ax.get('screenshot', { params: { key, target }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    assert.ok(Date.now() - t0 < 3500, `the capture waited ${Date.now() - t0}ms behind abandoned ones`)
+  })
+
   it('make a few prints of a page', async () => {
     let res = await ax.get('print', { params: { key, target }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)

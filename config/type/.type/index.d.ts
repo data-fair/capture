@@ -22,6 +22,19 @@ export type ApiConfig = {
     [k: string]: unknown;
   };
   concurrency: number;
+  /**
+   * Captures waiting for a browser context
+   */
+  queue: {
+    /**
+     * beyond this number of waiting captures, new ones are answered by a 503
+     */
+    maxWaiting: number;
+    /**
+     * milliseconds of waiting for a context before a 503
+     */
+    maxWaitTime: number;
+  };
   inspectConcurrency: number;
   defaultLang: string;
   defaultTimezone: string;

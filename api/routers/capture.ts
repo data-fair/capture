@@ -18,6 +18,15 @@ const inspectSemaphore = createSemaphore(config.inspectConcurrency)
 
 export const router = express.Router()
 
+// aborted when the client closes the request before its response is sent (a proxy timeout, a
+// user who left): the capture is dropped instead of being rendered for nobody
+const clientSignal = (res: Response) => {
+  const controller = new AbortController()
+  if (res.destroyed) controller.abort()
+  else res.on('close', () => { if (!res.writableFinished) controller.abort() })
+  return controller.signal
+}
+
 async function auth (req: Request, res: Response, next: NextFunction) {
   if (config.privateDirectoryUrl) {
     const user = reqSession(req).user
@@ -131,7 +140,9 @@ router.get('/screenshot', auth, async (req, res, next) => {
           res.send(buffer)
         }
       }
-    }
+    },
+    undefined,
+    clientSignal(res)
   )
   timer.finish()
 })
@@ -198,7 +209,9 @@ router.get('/print', auth, async (req, res, next) => {
         if (typeof req.query.filename === 'string') res.attachment(req.query.filename)
         res.send(buffer.toString())
       }
-    }
+    },
+    undefined,
+    clientSignal(res)
   )
   timer.finish()
 })
@@ -253,6 +266,7 @@ router.get('/inspect', async (req, res) => {
   const timer = createTimer(req.originalUrl, 'inspect')
 
   let collector: ReturnType<typeof createReportCollector> | undefined
+  const signal = clientSignal(res)
   await inspectSemaphore.run(async () => {
     // the client may have left while waiting for a slot, no need to render for nobody
     if (req.socket.destroyed || res.destroyed) return
@@ -281,7 +295,8 @@ router.get('/inspect', async (req, res) => {
         onPage: page => { collector = createReportCollector(page, target) },
         declaredErrorUrl,
         onDeclaredError: body => collector?.declareError(body)
-      }
+      },
+      signal
     )
   })
   timer.finish()
