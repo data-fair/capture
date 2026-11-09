@@ -63,6 +63,10 @@ export type ApiConfig = {
    */
   pngFastEncodingPixels: number;
   maxAnimationFrames: number;
+  /**
+   * worker threads encoding the animated captures, also the max number of gifs encoded at the same time
+   */
+  gifThreads: number;
   util?: unknown;
   get?: unknown;
   has?: unknown;

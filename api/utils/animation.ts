@@ -1,29 +1,30 @@
-import { file } from 'tmp-promise'
+import path from 'node:path'
+import { Piscina } from 'piscina'
 import config from '#config'
-import fs from 'node:fs'
-import { promisify } from 'node:util'
-import { pipeline } from 'node:stream/promises'
-import GifEncoder from 'gif-encoder'
-import getPixelsCb from 'get-pixels'
 import { optimizeGif } from './gifsicle.ts'
 import debugModule from 'debug'
+import log from '@data-fair/lib-node/log.js'
 import { type Page } from 'puppeteer'
+import type { GifEncodeTask } from '../threads/gif-encode.ts'
 
 const debug = debugModule('capture')
 
-const getPixels = promisify(getPixelsCb)
+// the gif encoding is CPU heavy pure JS, it runs in worker threads so that it does not block the
+// service. maxThreads also bounds the number of gifs encoded at the same time
+export const gifEncodePiscina = new Piscina<GifEncodeTask, Uint8Array>({
+  filename: path.resolve(import.meta.dirname, '../threads/gif-encode.ts'),
+  minThreads: 0,
+  idleTimeout: 10 * 60 * 1000,
+  maxThreads: config.gifThreads
+})
+// a pool emits 'error' when a thread dies with no task in flight; without a listener it crashes the process
+gifEncodePiscina.on('error', (err) => log.error('gif encoding worker error', { code: 'piscina-gif-encode', err }))
 
 export const capture = async (target: string, page: Page, width: number, height: number) => {
   let stopped = false
-  const gif = new GifEncoder(width, height)
-  gif.setFrameRate(15) // 15fps seams like a good compromise for a gif
-  gif.writeHeader()
-  const { path, cleanup } = await file({ postfix: '.gif' })
-  const pipelinePromise = pipeline(gif, fs.createWriteStream(path))
-  let i = 0
-  while (!stopped && i < config.maxAnimationFrames) {
-    i++
-    if (i % 15 === 0) debug(`[${target}] ${i} frames taken`)
+  const frames: Uint8Array[] = []
+  while (!stopped && frames.length < config.maxAnimationFrames) {
+    if (frames.length % 15 === 0) debug(`[${target}] ${frames.length} frames taken`)
     stopped = await page.evaluate(() => {
       // @ts-ignore
       return window.animateCaptureFrame()
@@ -35,16 +36,13 @@ export const capture = async (target: string, page: Page, width: number, height:
       new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
     ])
     if (!buffer) throw new Error(`Failed to capture animation frame of page "${target}" before timeout`)
-    // puppeteer returns a plain Uint8Array, but get-pixels switches on Buffer.isBuffer to tell
-    // raw image data from a file path, and would treat the frame as a filename otherwise
-    const frame = Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-    const pixels = await getPixels(frame, 'image/png')
-    gif.addFrame(pixels.data)
+    frames.push(buffer)
   }
-  gif.finish()
-  await pipelinePromise
+  debug(`[${target}] ${frames.length} frames taken, encode the gif`)
+  // 15fps seams like a good compromise for a gif
+  const raw = await gifEncodePiscina.run({ width, height, frameRate: 15, frames })
   debug(`[${target}] gif screenshot is taken`)
-  const rawBuffer = await fs.promises.readFile(path)
-  cleanup()
-  return await optimizeGif(rawBuffer, 2)
+  return await optimizeGif(Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength), 2)
 }
+
+export const stop = () => gifEncodePiscina.destroy()

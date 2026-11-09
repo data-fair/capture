@@ -24,7 +24,8 @@
     "screenshotTimeout",
     "wait",
     "pngFastEncodingPixels",
-    "maxAnimationFrames"
+    "maxAnimationFrames",
+    "gifThreads"
   ],
   "properties": {
     "port": {
@@ -139,6 +140,11 @@
     },
     "maxAnimationFrames": {
       "type": "number"
+    },
+    "gifThreads": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "worker threads encoding the animated captures, also the max number of gifs encoded at the same time"
     },
     "util": {},
     "get": {},

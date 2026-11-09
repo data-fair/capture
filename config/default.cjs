@@ -31,6 +31,7 @@ module.exports = {
     inspect: null // required on /inspect, which is disabled without it
   },
   maxAnimationFrames: 1800, // 2 minutes at 15fps
+  gifThreads: 2, // worker threads encoding the animated captures, also the max number of gifs encoded at the same time
   puppeteerLaunchOptions: {
     executablePath: '/usr/bin/google-chrome-stable',
     args: [],

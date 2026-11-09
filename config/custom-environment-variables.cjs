@@ -10,6 +10,7 @@ module.exports = {
   screenshotTimeout: 'SCREENSHOT_TIMEOUT',
   concurrency: 'CONCURRENCY',
   inspectConcurrency: 'INSPECT_CONCURRENCY',
+  gifThreads: 'GIF_THREADS',
   queue: {
     maxWaiting: 'QUEUE_MAX_WAITING',
     maxWaitTime: 'QUEUE_MAX_WAIT_TIME'
