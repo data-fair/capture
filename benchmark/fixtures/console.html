@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Console</title></head>
+<body>
+  <!-- a chatty page: ?logs=n console messages with an object argument, like a verbose app -->
+  <h1>Console</h1>
+  <script>
+    const logs = Number(new URLSearchParams(location.search).get('logs') || 500)
+    for (let i = 0; i < logs; i++) console.log('message', i, { i, label: 'value ' + i })
+    document.body.dataset.done = '1'
+  </script>
+</body>
+</html>

@@ -58,6 +58,58 @@ describe('capture', () => {
     assert.equal(res.headers['content-disposition'], 'attachment; filename=screenshot.png')
   })
 
+  it('return jpeg images, and png ones when a gif is asked from a page without animation', async () => {
+    let res = await ax.get('screenshot', { params: { key, target, type: 'jpg', filename: 'screenshot.jpg' }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['content-type'], 'image/jpeg')
+    assert.equal(res.headers['content-disposition'], 'attachment; filename=screenshot.jpg')
+    assert.deepEqual([...new Uint8Array(res.data).subarray(0, 3)], [0xff, 0xd8, 0xff])
+
+    // test1.html calls triggerCapture() without declaring animation support
+    res = await ax.get('screenshot', { params: { key, target, type: 'gif', filename: 'screenshot.gif' }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['content-type'], 'image/png')
+    assert.equal(res.headers['content-disposition'], 'attachment; filename=screenshot.png')
+    assert.equal(Buffer.from(res.data).subarray(1, 4).toString(), 'PNG')
+  })
+
+  it('wait for a page without triggerCapture to settle', async () => {
+    const settleTarget = origin + '/test/resources/test-settle.html'
+    const res = await ax.get('print', { params: { key, target: settleTarget, type: 'html' } })
+    assert.equal(res.status, 200)
+    assert.ok(res.data.includes('animation done'), 'the capture was taken before the end of the animation')
+
+    const times = (await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-clean.html', timer: 'true' } })).data
+    assert.ok('wait1-network-idle' in times)
+    assert.ok('wait2-settle' in times)
+  })
+
+  it('isolate captures from each other: nothing is left in the storages of the page', async () => {
+    const storageTarget = origin + '/test/resources/test-storage.html'
+    // sequential captures, so that a reused browser context would be reused here
+    for (const mark of ['user-a', 'user-b', 'user-c']) {
+      const res = await ax.get('print', { params: { key, target: storageTarget + '?mark=' + mark, type: 'html' } })
+      assert.equal(res.status, 200)
+      assert.ok(res.data.includes('previous=null'), `a previous capture left a mark: ${res.data.match(/previous=[^<]*/)?.[0]}`)
+    }
+  })
+
+  it('drop the captures of clients that left', async () => {
+    // more abandoned captures than browser contexts (concurrency 5) of a page that is never idle,
+    // each would hold a context for the whole screenshot timeout (2s in tests)
+    const busyTarget = origin + '/test/resources/test-busy.html'
+    const abandoned = []
+    for (let i = 0; i < 15; i++) {
+      abandoned.push(ax.get('screenshot', { params: { key, target: busyTarget }, timeout: 300 }).catch(err => err.code))
+    }
+    assert.ok((await Promise.all(abandoned)).every(code => code === 'ECONNABORTED'))
+    // 3 rounds of 5 abandoned captures would delay this one by ~6s if they were rendered
+    const t0 = Date.now()
+    const res = await ax.get('screenshot', { params: { key, target }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    assert.ok(Date.now() - t0 < 3500, `the capture waited ${Date.now() - t0}ms behind abandoned ones`)
+  })
+
   it('make a few prints of a page', async () => {
     let res = await ax.get('print', { params: { key, target }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)
@@ -157,6 +209,12 @@ describe('capture', () => {
     assert.equal(res.headers['content-type'], 'image/gif')
     const size1 = Number(res.headers['content-length'])
     assert.ok(size1 < 100000)
+
+    // a small gif is encoded in a slice of the Buffer pool of the worker, it must be returned anyway
+    res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html', type: 'gif', width: 100, height: 50 }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['content-type'], 'image/gif')
+    assert.equal(Buffer.from(res.data).subarray(0, 3).toString(), 'GIF')
 
     res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html', filename: 'test.gif' } })
     assert.equal(res.status, 200)

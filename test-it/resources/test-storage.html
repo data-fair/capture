@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Storage page</title>
+  </head>
+  <body>
+    <h1>Storage page</h1>
+    <p id="previous"></p>
+    <script>
+      // shows what a previous capture left in the storages of the origin, then leaves its own mark
+      const mark = new URLSearchParams(location.search).get('mark')
+      document.getElementById('previous').textContent = 'previous=' + localStorage.getItem('mark')
+      localStorage.setItem('mark', mark)
+      window.triggerCapture && window.triggerCapture()
+    </script>
+  </body>
+</html>

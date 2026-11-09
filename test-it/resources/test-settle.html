@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Settle page</title>
+  </head>
+  <body>
+    <h1>Settle page</h1>
+    <canvas id="chart" width="400" height="200"></canvas>
+    <p id="state">loading</p>
+    <script>
+      // never calls triggerCapture: after its data, a chart animates for 1.2s, like chart libraries
+      // do. The capture must wait for the end of the animation
+      fetch('/test/resources/test-clean.html').then(() => {
+        const ctx = document.getElementById('chart').getContext('2d')
+        const t0 = performance.now()
+        const frame = (t) => {
+          const k = Math.min(1, (t - t0) / 1200)
+          ctx.fillStyle = 'steelblue'
+          ctx.fillRect(0, 200 - 200 * k, 400, 200 * k)
+          if (k < 1) requestAnimationFrame(frame)
+          else document.getElementById('state').textContent = 'animation done'
+        }
+        requestAnimationFrame(frame)
+      })
+    </script>
+  </body>
+</html>

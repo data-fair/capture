@@ -13,10 +13,20 @@ import type { PaperFormat, PDFOptions } from 'puppeteer'
 
 const debug = debugModule('capture')
 
-// /inspect renders are expensive, a small number of them run at the same time
-const inspectSemaphore = createSemaphore(config.inspectConcurrency)
+// /inspect renders are expensive, a small number of them run at the same time (each one then takes
+// a capture slot like the other routes)
+const inspectSemaphore = createSemaphore(config.inspectConcurrency, config.queue)
 
 export const router = express.Router()
+
+// aborted when the client closes the request before its response is sent (a proxy timeout, a
+// user who left): the capture is dropped instead of being rendered for nobody
+const clientSignal = (res: Response) => {
+  const controller = new AbortController()
+  if (res.destroyed) controller.abort()
+  else res.on('close', () => { if (!res.writableFinished) controller.abort() })
+  return controller.signal
+}
 
 async function auth (req: Request, res: Response, next: NextFunction) {
   if (config.privateDirectoryUrl) {
@@ -113,18 +123,27 @@ router.get('/screenshot', auth, async (req, res, next) => {
         if (typeof req.query.filename === 'string') res.attachment(req.query.filename.replace('.png', '.gif'))
         res.send(buffer)
       } else {
-        const buffer = await page.screenshot({ fullPage: req.query.height === 'auto' })
-        debug(`[${target}] png screenshot is taken`)
-        timer.type = 'png'
+        // a gif was asked from a page that does not support animation: a png is returned
+        const imageType = (type === 'jpg' || type === 'jpeg') ? 'jpeg' : 'png'
+        const extension = imageType === 'jpeg' ? type : 'png'
+        const fullPage = req.query.height === 'auto'
+        // png encoding runs on the browser's main thread, shared by all captures: the large
+        // captures are encoded for speed (cf benchmark/FINDINGS.md)
+        const optimizeForSpeed = imageType === 'png' && (fullPage || width * height > config.pngFastEncodingPixels)
+        const buffer = await page.screenshot({ fullPage, type: imageType, optimizeForSpeed })
+        debug(`[${target}] ${imageType} screenshot is taken`)
+        timer.type = imageType
         if (req.query.timer === 'true') {
           res.send(timer.times)
         } else {
-          res.type(type)
-          if (typeof req.query.filename === 'string') res.attachment(req.query.filename.replace('.gif', '.' + type))
+          res.type(extension)
+          if (typeof req.query.filename === 'string') res.attachment(req.query.filename.replace(/\.(gif|png|jpe?g)$/, '.' + extension))
           res.send(buffer)
         }
       }
-    }
+    },
+    undefined,
+    clientSignal(res)
   )
   timer.finish()
 })
@@ -191,7 +210,9 @@ router.get('/print', auth, async (req, res, next) => {
         if (typeof req.query.filename === 'string') res.attachment(req.query.filename)
         res.send(buffer.toString())
       }
-    }
+    },
+    undefined,
+    clientSignal(res)
   )
   timer.finish()
 })
@@ -246,9 +267,9 @@ router.get('/inspect', async (req, res) => {
   const timer = createTimer(req.originalUrl, 'inspect')
 
   let collector: ReturnType<typeof createReportCollector> | undefined
+  const signal = clientSignal(res)
+  // the client may leave while waiting for a slot: the signal drops the render
   await inspectSemaphore.run(async () => {
-    // the client may have left while waiting for a slot, no need to render for nobody
-    if (req.socket.destroyed || res.destroyed) return
     await pageUtils.withPage(
       target,
       lang,
@@ -260,22 +281,25 @@ router.get('/inspect', async (req, res) => {
       `Failed to inspect page "${target}" before timeout`,
       async ({ page, ready }) => {
         const report = await collector!.finish(ready)
-        let buffer
+        // the base64 string of the browser as is: decoding it to bytes to encode it back to base64
+        // would only copy megabytes on the main thread
+        let data
         if (fullPage) {
           const height = await page.evaluate(() => document.documentElement.scrollHeight)
-          buffer = await page.screenshot({ captureBeyondViewport: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
+          data = await page.screenshot({ encoding: 'base64', captureBeyondViewport: true, optimizeForSpeed: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
         } else {
-          buffer = await page.screenshot()
+          data = await page.screenshot({ encoding: 'base64' })
         }
         timer.type = 'inspect'
-        res.json({ image: { data: Buffer.from(buffer).toString('base64'), mediaType: 'image/png' }, text: reportText(report), report })
+        res.json({ image: { data, mediaType: 'image/png' }, text: reportText(report), report })
       },
       {
         onPage: page => { collector = createReportCollector(page, target) },
         declaredErrorUrl,
         onDeclaredError: body => collector?.declareError(body)
-      }
+      },
+      signal
     )
-  })
+  }, signal).catch(err => { throw pageUtils.slotError(err) })
   timer.finish()
 })

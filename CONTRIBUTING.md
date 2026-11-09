@@ -4,8 +4,9 @@
 
 - Node.js, the version of `.nvmrc` (start zellij from a shell on it: the panes inherit its PATH)
 - zellij >= 0.44
-- google-chrome-stable (`/usr/bin/google-chrome-stable`, the `executablePath` of `config/default.cjs`)
-  and gifsicle (animated captures), installed on your system
+- gifsicle (animated captures), installed on your system. The browser is chrome-headless-shell:
+  the image installs Debian's package, development and tests use the build downloaded by puppeteer
+  (`npx puppeteer browsers install chrome-headless-shell`, the version that matches puppeteer)
 
 ## Setup
 
@@ -13,10 +14,11 @@ The dev environment is the shared one of the data-fair services (`@data-fair/lib
 session per checkout, described by `.zellij.kdl` and `dev/dev.json`. No containers: in development
 capture runs without authentication (no `privateDirectoryUrl`).
 
-1. Install dependencies (puppeteer's own browser download is not needed), then write `.env` (free
-   ports drawn for this checkout) and build the types:
+1. Install dependencies and chrome-headless-shell, then write `.env` (free ports drawn for this
+   checkout) and build the types:
    ```bash
    PUPPETEER_SKIP_DOWNLOAD=true npm ci
+   npx puppeteer browsers install chrome-headless-shell
    npx --no df-dev setup
    ```
 

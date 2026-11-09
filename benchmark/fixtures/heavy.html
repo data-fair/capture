@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Heavy</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  .tile { display: inline-block; width: 90px; height: 60px; margin: 4px; border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4); background: linear-gradient(135deg, #f80, #08f); filter: blur(0.3px); }
+</style></head>
+<body>
+  <!-- paint heavy: a large SVG scatter and many shadowed gradient tiles. ?n=circles -->
+  <div id="svg"></div><div id="tiles"></div>
+  <script>
+    const n = Number(new URLSearchParams(location.search).get('n') || 20000)
+    let svg = '<svg width="1900" height="1000" xmlns="http://www.w3.org/2000/svg">'
+    for (let i = 0; i < n; i++) svg += `<circle cx="${Math.random() * 1900}" cy="${Math.random() * 1000}" r="${2 + Math.random() * 6}" fill="hsla(${i % 360},70%,50%,.6)"/>`
+    document.getElementById('svg').innerHTML = svg + '</svg>'
+    let tiles = ''
+    for (let i = 0; i < 600; i++) tiles += `<div class="tile">${i}</div>`
+    document.getElementById('tiles').innerHTML = tiles
+    document.body.dataset.done = '1'
+  </script>
+</body>
+</html>

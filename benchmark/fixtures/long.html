@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Long report</title>
+<style>
+  body { font-family: serif; line-height: 1.5; }
+  h2 { page-break-before: always; color: #036; }
+  table { border-collapse: collapse; width: 100%; font-size: 11px; }
+  td, th { border: 1px solid #999; padding: 2px; }
+</style></head>
+<body>
+  <!-- a report to print: ?sections=n, each with headings, paragraphs, a table and an inline chart -->
+  <h1>Rapport</h1>
+  <div id="content"></div>
+  <script>
+    const sections = Number(new URLSearchParams(location.search).get('sections') || 30)
+    const lorem = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec vulputate blandit volutpat. Integer auctor aliquam tellus, in mollis elit placerat vel. Donec hendrerit purus quis rhoncus malesuada. Nullam ut massa et risus porttitor aliquam sed et lectus. '
+    let html = ''
+    for (let s = 0; s < sections; s++) {
+      html += `<h2>Section ${s + 1}</h2>`
+      for (let p = 0; p < 4; p++) html += `<h3>Partie ${s + 1}.${p + 1}</h3><p>${lorem.repeat(3)}</p>`
+      html += '<table><tr><th>Code</th><th>Commune</th><th>Valeur</th><th>Évolution</th></tr>'
+      for (let r = 0; r < 25; r++) html += `<tr><td>${10000 + r}</td><td>Commune ${r}</td><td>${(Math.random() * 1000).toFixed(2)}</td><td>${(Math.random() * 10 - 5).toFixed(1)} %</td></tr>`
+      html += '</table><svg width="600" height="150">'
+      for (let b = 0; b < 40; b++) html += `<rect x="${b * 15}" y="${150 - b * 3}" width="12" height="${b * 3}" fill="steelblue"/>`
+      html += '</svg>'
+    }
+    document.getElementById('content').innerHTML = html
+    document.body.dataset.done = '1'
+  </script>
+</body>
+</html>

@@ -14,27 +14,27 @@ export const tasks = new client.Histogram({
 })
 export const contextsCleanups = new client.Counter({
   name: 'df_capture_contexts_cleanups',
-  help: 'Number of times a browser context was cleaned up for later reuse'
+  help: 'Number of browser contexts closed after their capture (one fresh context per capture)'
 })
 
 export const acquireContextPending = new client.Gauge({
   name: 'df_capture_acquire_context_pending',
-  help: 'Number of tasks waiting to acquire a browser context',
+  help: 'Number of captures waiting for a slot',
   async collect () {
-    this.set(pageUtils.contextPool && pageUtils.contextPool().pending)
+    this.set(pageUtils.captureSlots.pending())
   }
 })
 export const acquireContextMax = new client.Gauge({
   name: 'df_capture_acquire_context_max',
-  help: 'Max number of browser contexts that can be borrowed by tasks',
+  help: 'Max number of captures running at the same time',
   async collect () {
-    this.set(pageUtils.contextPool && pageUtils.contextPool().max)
+    this.set(pageUtils.captureSlots.max)
   }
 })
 export const acquireContextBorrowed = new client.Gauge({
   name: 'df_capture_acquire_context_borrowed',
-  help: 'Number of browser contexts currently borrowed by a task',
+  help: 'Number of captures running',
   async collect () {
-    this.set(pageUtils.contextPool && pageUtils.contextPool().borrowed)
+    this.set(pageUtils.captureSlots.active())
   }
 })

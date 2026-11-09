@@ -7,6 +7,7 @@ import { createHttpTerminator } from 'http-terminator'
 import app from './app.ts'
 import * as pageUtils from './utils/page.ts'
 import * as gifsicle from './utils/gifsicle.ts'
+import * as animation from './utils/animation.ts'
 import config from '#config'
 
 const server = createServer(app)
@@ -38,4 +39,5 @@ export const stop = async () => {
   await httpTerminator.terminate()
   if (config.observer.active) await stopObserver()
   await pageUtils.stop()
+  await animation.stop()
 }

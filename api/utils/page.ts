@@ -1,11 +1,11 @@
 import config from '#config'
 import puppeteer, { type Viewport, type Browser, type BrowserContext, type Page, type CookieData } from 'puppeteer'
-import genericPool, { type Factory, type Pool } from 'generic-pool'
 import { contextsCleanups } from './metrics.ts'
 import debugModule from 'debug'
 import log from '@data-fair/lib-node/log.js'
 import { Timer } from './timer.ts'
 import { httpError } from '@data-fair/lib-express'
+import { createSemaphore, SemaphoreError } from './semaphore.ts'
 import type { Ready } from './report.ts'
 
 const debug = debugModule('capture')
@@ -13,38 +13,20 @@ const debug = debugModule('capture')
 let _closed = false
 
 let _browser: Browser
-let _contextPool: Pool<BrowserContext>
 
-export function contextPool () {
-  if (!_contextPool) throw new Error('contextPool not initialized')
-  return _contextPool
-}
+// the captures running at the same time, each one in its own incognito context. The others wait
+// in a bounded queue (config.queue)
+export const captureSlots = createSemaphore(config.concurrency, config.queue)
 
 export const start = async () => {
   log.info('init puppeteer browser', { launchOptions: config.puppeteerLaunchOptions })
   _browser = await puppeteer.launch(config.puppeteerLaunchOptions)
-  const contextFactory: Factory<BrowserContext> = {
-    async create () {
-    // create pages in incognito contexts so that cookies are not shared
-    // each context is used sequentially only because of cookies or other states conflicts
-      return _browser.createBrowserContext({})
-    },
-    async destroy (context) {
-      await context.close()
-    }
-  }
-  _contextPool = genericPool.createPool(contextFactory, { max: config.concurrency })
 
   // auto reconnection, cf https://github.com/GoogleChrome/puppeteer/issues/4428
+  // the captures running in the lost browser fail, the next ones use the new browser
   _browser.on('disconnected', async () => {
     if (!_closed) {
       log.error('browser was disconnected, reconnect', { code: 'browser-disconnected' })
-      try {
-        await _contextPool.drain()
-        _contextPool.clear()
-      } catch (err) {
-        log.error('failure while draining the replaced contexts pool', { code: 'contexts-pool-drain', err })
-      }
       start().catch(err => log.error('failure while restarting the browser', { code: 'browser-restart', err }))
     }
   })
@@ -53,10 +35,6 @@ export const start = async () => {
 export const stop = async () => {
   _closed = true
   if (_browser) await _browser.close()
-  if (_contextPool) {
-    await _contextPool.drain()
-    _contextPool.clear()
-  }
 }
 
 const debugPage = (page: Page) => {
@@ -166,10 +144,47 @@ async function openInPage (
 }
 
 export const promiseTimeout = async <T>(promise: Promise<T>, ms: number, msg = 'timeout') => {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve, reject) => setTimeout(() => reject(new Error(msg)), ms))
-  ])
+  let timer: NodeJS.Timeout | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve, reject) => { timer = setTimeout(() => reject(new Error(msg)), ms) })
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// the client left (proxy timeout, user gone): the render is stopped, nobody would receive it.
+// 499 is nginx's "client closed request", below 500 it is not logged as a failure
+const clientGone = () => httpError(499, 'client closed the request')
+
+// rejects as soon as the signal aborts, the promise keeps running but its page gets closed
+const unlessAborted = async <T>(promise: Promise<T>, signal: AbortSignal | undefined) => {
+  if (!signal) return promise
+  if (signal.aborted) throw clientGone()
+  let onAbort: (() => void) | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve, reject) => {
+        onAbort = () => reject(clientGone())
+        signal.addEventListener('abort', onAbort, { once: true })
+      })
+    ])
+  } finally {
+    if (onAbort) signal.removeEventListener('abort', onAbort)
+  }
+}
+
+// a full queue or a long wait for a slot mean an overloaded service: better a quick 503 that the
+// caller can retry than a response after it has given up
+export const slotError = (err: unknown) => {
+  if (err instanceof SemaphoreError) {
+    if (err.code === 'aborted') return clientGone()
+    return httpError(503, 'the capture service is overloaded, retry later')
+  }
+  return err
 }
 
 export const withPage = async (
@@ -182,83 +197,92 @@ export const withPage = async (
   timer: Timer,
   callbackTimeoutMsg: string,
   callback: (result: OpenPageResult) => Promise<void>,
-  inspect?: InspectOptions) => {
+  inspect?: InspectOptions,
+  // aborted when the client closes the request
+  signal?: AbortSignal) => {
   if (target.includes('capture-test-error=true')) {
     await new Promise(resolve => setTimeout(resolve, 1000))
     throw new Error('forced error trigger')
   }
-  let context, page, openSuccess
   try {
-    debug(`[${target}] use incognito context from pool`)
-    let pageAttempts = 0
-    while (!page) {
-      pageAttempts++
-      context = await _contextPool.acquire()
+    await captureSlots.run(async () => {
       timer.step('acquire-context')
+      // a fresh incognito context per capture, closed after it: nothing of a capture (cookies,
+      // localStorage, IndexedDB, cache, service workers) can leak into the next one, whatever
+      // the user it is made for. It costs a few milliseconds
+      const context = await _browser.createBrowserContext()
       try {
-        page = await context.newPage()
-      } catch (err) {
-        if (pageAttempts === config.concurrency) {
-          throw err
-        } else {
-          debug(`[${target}] delete incognito context from pool because it couldn't be used to open a page`)
-          await _contextPool.destroy(context)
-        }
-      }
-    }
-    debugPage(page)
-    inspect?.onPage?.(page)
-    timer.step('newPage')
+        const page = await context.newPage()
+        // the console listener costs 2 CDP round trips per argument of every console message, on
+        // the main thread of the service: only paid when the debug output is enabled (DEBUG=capture)
+        if (debug.enabled) debugPage(page)
+        inspect?.onPage?.(page)
+        timer.step('newPage')
 
-    const result = await promiseTimeout(
-      openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, inspect),
-      config.screenshotTimeout * 2,
-      `Failed to open "${target}" in context before timeout`
-    )
-    timer.step('open-in-page')
-    openSuccess = true
-    await promiseTimeout(
-      callback(result),
-      result.animationActivated ? config.screenshotTimeout * 2 : config.screenshotTimeout,
-      callbackTimeoutMsg
-    )
-  } finally {
-    if (page) await safeCleanContext(page, !!openSuccess)
+        const result = await unlessAborted(promiseTimeout(
+          openInPage(page, target, lang, timezone, cookies, viewport, animate, timer, inspect),
+          config.screenshotTimeout * 2,
+          `Failed to open "${target}" in context before timeout`
+        ), signal)
+        timer.step('open-in-page')
+        await unlessAborted(promiseTimeout(
+          callback(result),
+          result.animationActivated ? config.screenshotTimeout * 2 : config.screenshotTimeout,
+          callbackTimeoutMsg
+        ), signal)
+      } finally {
+        await closeContext(context)
+      }
+    }, signal)
+  } catch (err) {
+    throw slotError(err)
   }
   timer.step('close-page')
 }
 
-const cleanContext = async (page: Page) => {
-  // always empty cookies to prevent inheriting them in next use of the context
-  const context = page.browserContext()
-  const cookies = await context.cookies()
-  // deleting them in a single call spares one CDP round trip per cookie, and this
-  // runs inside a 2s timeout that a session's worth of cookies could otherwise eat
-  if (cookies.length) await context.deleteCookie(...cookies)
-  await page.close()
-}
-
-const safeCleanContext = async (page: Page, openSuccess: boolean) => {
-  if (openSuccess) {
-    try {
-      await promiseTimeout(
-        cleanContext(page),
-        2000,
-        'timed out while cleaning page context'
-      )
-      await _contextPool.release(page.browserContext())
-      contextsCleanups.inc()
-    } catch (err) {
-      log.warn('failed to clean page properly, do not reuse this context', { code: 'page-clean', err })
-      await _contextPool.destroy(page.browserContext())
-    }
-  } else {
-    await _contextPool.destroy(page.browserContext())
+const closeContext = async (context: BrowserContext) => {
+  try {
+    await promiseTimeout(context.close(), 5000, 'timed out while closing a browser context')
+    contextsCleanups.inc()
+  } catch (err) {
+    // the browser may be gone (disconnected), or stuck: nothing more to do for this capture
+    log.warn('failed to close a browser context', { code: 'context-close', err })
   }
 }
 
-// quite complex strategy to wait for the page to be ready for capture.
-// it can either explitly call a triggerCapture function or we wait for idle network + 1s
+// injected before any script of the page: records the last time the page did visible work, read
+// by waitForQuiet. A copy of benchmark/lib/capture.ts, where the strategy was measured
+const installActivityTracker = () => {
+  const w = window as any
+  w.__captureLastActivity = performance.now()
+  const mark = () => { w.__captureLastActivity = performance.now() }
+  const raf = window.requestAnimationFrame.bind(window)
+  window.requestAnimationFrame = (cb) => raf((t) => { mark(); cb(t) })
+  new MutationObserver(mark).observe(document, { subtree: true, childList: true, attributes: true, characterData: true })
+}
+
+// resolves when the page has been visually quiet for quietTime (no DOM mutation, no animation frame,
+// no running finite animation, no font loading), or after maxSettleTime. Endless animations
+// (spinners) are ignored, they never settle
+const waitForQuiet = (page: Page) => page.evaluate((quietTime, maxSettleTime) => new Promise<string>(resolve => {
+  const start = performance.now()
+  const check = () => {
+    const now = performance.now()
+    const busy = []
+    if (now - ((window as any).__captureLastActivity ?? 0) < quietTime) busy.push('activity')
+    if (document.getAnimations().some(a => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity)) busy.push('animations')
+    if (document.fonts.status === 'loading') busy.push('fonts')
+    if (!busy.length) return resolve('quiet')
+    if (now - start >= maxSettleTime) return resolve('max settle time, busy with ' + busy.join(' and '))
+    setTimeout(check, 50)
+  }
+  check()
+}), config.wait.quietTime, config.wait.maxSettleTime)
+
+// the strategy to wait for the page to be ready for capture.
+// the page can explicitly call a triggerCapture function, this is the fast and reliable way.
+// otherwise we wait for the network to be idle, then for the page to be visually quiet (cf
+// benchmark/FINDINGS.md for the measures behind this strategy)
 const waitForPage = async (
   page: Page,
   target: string,
@@ -269,6 +293,7 @@ const waitForPage = async (
   let captureTriggered = false
   let timeoutReached = false
   let animationActivated = false
+  let settledBy = ''
   const triggerCapture = new Promise<void>(resolve => page.exposeFunction('triggerCapture', (animationSupported?: boolean) => {
     captureTriggered = true
     animationActivated = !!(animate && animationSupported)
@@ -276,18 +301,25 @@ const waitForPage = async (
     // return animate to the page inside the capture
     return animate
   }))
+  await page.evaluateOnNewDocument(installActivityTracker)
 
   try {
     // wait for network inactivity, but it can be interrupted if triggerCapture is called
-    const waitOptions = { waitUntil: 'networkidle0' as const, timeout: config.screenshotTimeout }
-    await Promise.race([page.goto(target, waitOptions), triggerCapture])
+    // puppeteer's own network idle: networkidle0 is Chrome's lifecycle event, its idleness
+    // detector fires 0.5 to 1.5s after the last request depending on the page's activity
+    const deadline = Date.now() + config.screenshotTimeout
+    const networkIdle = page.goto(target, { waitUntil: 'load', timeout: config.screenshotTimeout })
+      .then(() => page.waitForNetworkIdle({ idleTime: config.wait.networkIdleTime, timeout: Math.max(1, deadline - Date.now()) }))
+    // the race may be won by triggerCapture, a later rejection (page closed) must not go unhandled
+    networkIdle.catch(() => {})
+    await Promise.race([networkIdle, triggerCapture])
 
     if (captureTriggered) {
       timer.step('wait1-capture-triggered')
       debug(`[${target}] capture was expicitly triggered by window.triggerCapture`)
     } else {
       timer.step('wait1-network-idle')
-      debug(`[${target}] network was idle during 500ms`)
+      debug(`[${target}] network was idle during ${config.wait.networkIdleTime}ms`)
     }
   } catch (err: any) {
     if (err.name !== 'TimeoutError') throw err
@@ -302,9 +334,6 @@ const waitForPage = async (
     // we are done here, capture was already explicitly triggered or we already waited for a long time
   } else {
     // network was found to be idle, adapt the wait strategy based on some meta
-    // Adapt the wait strategy based on the x-capture meta
-
-    // Adapt the wait strategy based on the x-capture meta
     let captureDelayMeta
     try {
       captureDelayMeta = await page.$eval('head > meta[name=\'df:capture-delay\']', el => el.content)
@@ -323,6 +352,7 @@ const waitForPage = async (
         debug(`[${target}] capture was expicitly triggered by window.triggerCapture`)
       } else {
         timer.step('wait2-delay')
+        settledBy = `the df:capture-delay meta (${delay}ms)`
         debug(`[${target}] delay of ${delay / 1000} seconds was reached`)
       }
     } else {
@@ -349,11 +379,26 @@ const waitForPage = async (
           timeoutReached = true
         }
       } else {
-        debug(`[${target}] wait 1000ms more after idle network for safety`)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        timer.step('wait2-1s')
+        // the page may still render after its last response (charts animations, vue rendering..)
+        const quiet = await waitForQuiet(page)
+        if (captureTriggered) {
+          timer.step('wait2-capture-triggered')
+        } else {
+          timer.step('wait2-settle')
+          settledBy = quiet === 'quiet' ? 'network idle then visual quiet' : 'network idle then ' + quiet
+          debug(`[${target}] settled: ${settledBy}`)
+        }
       }
     }
+  }
+  if (!captureTriggered) {
+    // the heuristics are slower and less reliable than an explicit signal, this guides the
+    // applications that should call window.triggerCapture when they are rendered
+    log.warn('captured page did not call window.triggerCapture', {
+      code: 'capture-no-trigger',
+      target,
+      settledBy: timeoutReached ? `the timeout (${config.screenshotTimeout}ms)` : settledBy
+    })
   }
   const ready: Ready = captureTriggered ? 'triggered' : timeoutReached ? 'timeout' : 'idle'
   return { animationActivated, ready }

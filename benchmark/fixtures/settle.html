@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Settle</title>
+  <!-- what happens after the last response, without any network: ?mode=
+       raf      a canvas chart animated by requestAnimationFrame for ?ms (default 1000), like chart.js/echarts
+       css      bars that grow with a CSS transition of ?ms
+       spinner  an endless CSS spinner next to the final content (a page that never settles)
+       font     a web font loaded from the fixtures server with a delay
+       timer    content inserted ?ms after the data, by a plain setTimeout (the blind spot)
+       data-done is set when the final state is drawn -->
+  <style>
+    body { font-family: sans-serif; margin: 16px; }
+    .bar { display: inline-block; width: 30px; margin-right: 6px; background: steelblue; height: 0; vertical-align: bottom; }
+    .spinner { width: 24px; height: 24px; border: 4px solid #ccc; border-top-color: #036; border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg) } }
+  </style>
+</head>
+<body>
+  <h1 id="title">Settle</h1>
+  <div id="content"></div>
+  <script>
+    const params = new URLSearchParams(location.search)
+    const mode = params.get('mode') || 'raf'
+    const ms = Number(params.get('ms') || 1000)
+    const done = () => { document.body.dataset.done = '1' }
+    const content = document.getElementById('content')
+    fetch('/data?n=20&delay=150').then(r => r.json()).then(points => {
+      const max = Math.max(...points.map(p => p.y))
+      if (mode === 'raf') {
+        const c = document.createElement('canvas')
+        c.width = 760; c.height = 300
+        content.appendChild(c)
+        const ctx = c.getContext('2d')
+        const t0 = performance.now()
+        const frame = (t) => {
+          const k = Math.min(1, (t - t0) / ms)
+          ctx.clearRect(0, 0, c.width, c.height)
+          points.forEach((p, i) => { ctx.fillStyle = 'steelblue'; ctx.fillRect(i * 38, 300 - p.y / max * 300 * k, 30, p.y / max * 300 * k) })
+          if (k < 1) requestAnimationFrame(frame)
+          else done()
+        }
+        requestAnimationFrame(frame)
+      } else if (mode === 'css') {
+        content.innerHTML = points.map(() => '<div class="bar"></div>').join('')
+        const bars = content.querySelectorAll('.bar')
+        bars.forEach(b => { b.style.transition = `height ${ms}ms ease-out` })
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          bars.forEach((b, i) => { b.style.height = (points[i].y / max * 300) + 'px' })
+          bars[0].addEventListener('transitionend', done, { once: true })
+        }))
+      } else if (mode === 'spinner') {
+        content.innerHTML = '<div class="spinner"></div> ' + points.map(p => p.label).join(', ')
+        done()
+      } else if (mode === 'font') {
+        const font = new FontFace('Bench', 'url(/font.woff2?delay=' + ms + ')')
+        document.fonts.add(font)
+        document.getElementById('title').style.fontFamily = 'Bench, serif'
+        content.textContent = points.map(p => p.label).join(', ')
+        font.load().then(done, done)
+      } else if (mode === 'timer') {
+        setTimeout(() => { content.textContent = points.map(p => p.label).join(', '); done() }, ms)
+      }
+    })
+  </script>
+</body>
+</html>

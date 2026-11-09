@@ -15,12 +15,15 @@ jobs:
         node-version-file: .nvmrc
         cache: 'npm'
 
-    # google-chrome-stable is preinstalled on the runner, gifsicle is not
     - name: Install gifsicle
       run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gifsicle
 
     - name: Install dependencies
       run: npm ci
+
+    # the browser of the tests, the version that matches puppeteer
+    - name: Install chrome-headless-shell
+      run: npx puppeteer browsers install chrome-headless-shell
 
     - name: Lint
       run: npm run lint

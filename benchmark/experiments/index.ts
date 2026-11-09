@@ -1,0 +1,15 @@
+import type { Experiment } from './common.ts'
+import { wait } from './wait.ts'
+import { browser } from './browser.ts'
+import { context } from './context.ts'
+import { consoleListener } from './console.ts'
+import { output } from './output.ts'
+import { gif } from './gif.ts'
+import { concurrency } from './concurrency.ts'
+import { args } from './args.ts'
+import { transport } from './transport.ts'
+import { e2e } from './e2e.ts'
+import { hotspot } from './hotspot.ts'
+import { real } from './real.ts'
+
+export const experiments: Record<string, Experiment> = { wait, browser, context, console: consoleListener, output, gif, concurrency, args, transport, e2e, hotspot, real }

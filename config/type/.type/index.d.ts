@@ -22,13 +22,51 @@ export type ApiConfig = {
     [k: string]: unknown;
   };
   concurrency: number;
+  /**
+   * Captures waiting for a browser context
+   */
+  queue: {
+    /**
+     * beyond this number of waiting captures, new ones are answered by a 503
+     */
+    maxWaiting: number;
+    /**
+     * milliseconds of waiting for a context before a 503
+     */
+    maxWaitTime: number;
+  };
   inspectConcurrency: number;
   defaultLang: string;
   defaultTimezone: string;
   onlySameHost?: boolean;
   useHostHeader?: boolean;
   screenshotTimeout: number;
+  /**
+   * How long a page that does not call window.triggerCapture is waited for
+   */
+  wait: {
+    /**
+     * milliseconds without any network request before the page is considered loaded
+     */
+    networkIdleTime: number;
+    /**
+     * then, milliseconds without DOM mutation, animation frame, finite animation or font loading before the capture
+     */
+    quietTime: number;
+    /**
+     * the longest wait for that quiet, after the network is idle
+     */
+    maxSettleTime: number;
+  };
+  /**
+   * above this number of pixels, and for full page captures, PNG screenshots are encoded for speed rather than size
+   */
+  pngFastEncodingPixels: number;
   maxAnimationFrames: number;
+  /**
+   * worker threads encoding the animated captures, also the max number of gifs encoded at the same time
+   */
+  gifThreads: number;
   util?: unknown;
   get?: unknown;
   has?: unknown;
