@@ -257,8 +257,39 @@ const safeCleanContext = async (page: Page, openSuccess: boolean) => {
   }
 }
 
-// quite complex strategy to wait for the page to be ready for capture.
-// it can either explitly call a triggerCapture function or we wait for idle network + 1s
+// injected before any script of the page: records the last time the page did visible work, read
+// by waitForQuiet. A copy of benchmark/lib/capture.ts, where the strategy was measured
+const installActivityTracker = () => {
+  const w = window as any
+  w.__captureLastActivity = performance.now()
+  const mark = () => { w.__captureLastActivity = performance.now() }
+  const raf = window.requestAnimationFrame.bind(window)
+  window.requestAnimationFrame = (cb) => raf((t) => { mark(); cb(t) })
+  new MutationObserver(mark).observe(document, { subtree: true, childList: true, attributes: true, characterData: true })
+}
+
+// resolves when the page has been visually quiet for quietTime (no DOM mutation, no animation frame,
+// no running finite animation, no font loading), or after maxSettleTime. Endless animations
+// (spinners) are ignored, they never settle
+const waitForQuiet = (page: Page) => page.evaluate((quietTime, maxSettleTime) => new Promise<string>(resolve => {
+  const start = performance.now()
+  const check = () => {
+    const now = performance.now()
+    const busy = []
+    if (now - ((window as any).__captureLastActivity ?? 0) < quietTime) busy.push('activity')
+    if (document.getAnimations().some(a => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity)) busy.push('animations')
+    if (document.fonts.status === 'loading') busy.push('fonts')
+    if (!busy.length) return resolve('quiet')
+    if (now - start >= maxSettleTime) return resolve('max settle time, busy with ' + busy.join(' and '))
+    setTimeout(check, 50)
+  }
+  check()
+}), config.wait.quietTime, config.wait.maxSettleTime)
+
+// the strategy to wait for the page to be ready for capture.
+// the page can explicitly call a triggerCapture function, this is the fast and reliable way.
+// otherwise we wait for the network to be idle, then for the page to be visually quiet (cf
+// benchmark/FINDINGS.md for the measures behind this strategy)
 const waitForPage = async (
   page: Page,
   target: string,
@@ -269,6 +300,7 @@ const waitForPage = async (
   let captureTriggered = false
   let timeoutReached = false
   let animationActivated = false
+  let settledBy = ''
   const triggerCapture = new Promise<void>(resolve => page.exposeFunction('triggerCapture', (animationSupported?: boolean) => {
     captureTriggered = true
     animationActivated = !!(animate && animationSupported)
@@ -276,18 +308,25 @@ const waitForPage = async (
     // return animate to the page inside the capture
     return animate
   }))
+  await page.evaluateOnNewDocument(installActivityTracker)
 
   try {
     // wait for network inactivity, but it can be interrupted if triggerCapture is called
-    const waitOptions = { waitUntil: 'networkidle0' as const, timeout: config.screenshotTimeout }
-    await Promise.race([page.goto(target, waitOptions), triggerCapture])
+    // puppeteer's own network idle: networkidle0 is Chrome's lifecycle event, its idleness
+    // detector fires 0.5 to 1.5s after the last request depending on the page's activity
+    const deadline = Date.now() + config.screenshotTimeout
+    const networkIdle = page.goto(target, { waitUntil: 'load', timeout: config.screenshotTimeout })
+      .then(() => page.waitForNetworkIdle({ idleTime: config.wait.networkIdleTime, timeout: Math.max(1, deadline - Date.now()) }))
+    // the race may be won by triggerCapture, a later rejection (page closed) must not go unhandled
+    networkIdle.catch(() => {})
+    await Promise.race([networkIdle, triggerCapture])
 
     if (captureTriggered) {
       timer.step('wait1-capture-triggered')
       debug(`[${target}] capture was expicitly triggered by window.triggerCapture`)
     } else {
       timer.step('wait1-network-idle')
-      debug(`[${target}] network was idle during 500ms`)
+      debug(`[${target}] network was idle during ${config.wait.networkIdleTime}ms`)
     }
   } catch (err: any) {
     if (err.name !== 'TimeoutError') throw err
@@ -302,9 +341,6 @@ const waitForPage = async (
     // we are done here, capture was already explicitly triggered or we already waited for a long time
   } else {
     // network was found to be idle, adapt the wait strategy based on some meta
-    // Adapt the wait strategy based on the x-capture meta
-
-    // Adapt the wait strategy based on the x-capture meta
     let captureDelayMeta
     try {
       captureDelayMeta = await page.$eval('head > meta[name=\'df:capture-delay\']', el => el.content)
@@ -323,6 +359,7 @@ const waitForPage = async (
         debug(`[${target}] capture was expicitly triggered by window.triggerCapture`)
       } else {
         timer.step('wait2-delay')
+        settledBy = `the df:capture-delay meta (${delay}ms)`
         debug(`[${target}] delay of ${delay / 1000} seconds was reached`)
       }
     } else {
@@ -349,11 +386,26 @@ const waitForPage = async (
           timeoutReached = true
         }
       } else {
-        debug(`[${target}] wait 1000ms more after idle network for safety`)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        timer.step('wait2-1s')
+        // the page may still render after its last response (charts animations, vue rendering..)
+        const quiet = await waitForQuiet(page)
+        if (captureTriggered) {
+          timer.step('wait2-capture-triggered')
+        } else {
+          timer.step('wait2-settle')
+          settledBy = quiet === 'quiet' ? 'network idle then visual quiet' : 'network idle then ' + quiet
+          debug(`[${target}] settled: ${settledBy}`)
+        }
       }
     }
+  }
+  if (!captureTriggered) {
+    // the heuristics are slower and less reliable than an explicit signal, this guides the
+    // applications that should call window.triggerCapture when they are rendered
+    log.warn('captured page did not call window.triggerCapture', {
+      code: 'capture-no-trigger',
+      target,
+      settledBy: timeoutReached ? `the timeout (${config.screenshotTimeout}ms)` : settledBy
+    })
   }
   const ready: Ready = captureTriggered ? 'triggered' : timeoutReached ? 'timeout' : 'idle'
   return { animationActivated, ready }

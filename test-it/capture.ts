@@ -58,6 +58,32 @@ describe('capture', () => {
     assert.equal(res.headers['content-disposition'], 'attachment; filename=screenshot.png')
   })
 
+  it('return jpeg images, and png ones when a gif is asked from a page without animation', async () => {
+    let res = await ax.get('screenshot', { params: { key, target, type: 'jpg', filename: 'screenshot.jpg' }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['content-type'], 'image/jpeg')
+    assert.equal(res.headers['content-disposition'], 'attachment; filename=screenshot.jpg')
+    assert.deepEqual([...new Uint8Array(res.data).subarray(0, 3)], [0xff, 0xd8, 0xff])
+
+    // test1.html calls triggerCapture() without declaring animation support
+    res = await ax.get('screenshot', { params: { key, target, type: 'gif', filename: 'screenshot.gif' }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['content-type'], 'image/png')
+    assert.equal(res.headers['content-disposition'], 'attachment; filename=screenshot.png')
+    assert.equal(Buffer.from(res.data).subarray(1, 4).toString(), 'PNG')
+  })
+
+  it('wait for a page without triggerCapture to settle', async () => {
+    const settleTarget = origin + '/test/resources/test-settle.html'
+    const res = await ax.get('print', { params: { key, target: settleTarget, type: 'html' } })
+    assert.equal(res.status, 200)
+    assert.ok(res.data.includes('animation done'), 'the capture was taken before the end of the animation')
+
+    const times = (await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-clean.html', timer: 'true' } })).data
+    assert.ok('wait1-network-idle' in times)
+    assert.ok('wait2-settle' in times)
+  })
+
   it('make a few prints of a page', async () => {
     let res = await ax.get('print', { params: { key, target }, responseType: 'arraybuffer' })
     assert.equal(res.status, 200)

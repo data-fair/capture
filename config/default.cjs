@@ -7,6 +7,15 @@ module.exports = {
     active: true
   },
   screenshotTimeout: 20000,
+  // for pages that do not call window.triggerCapture: network idle, then visual quiet, capped
+  wait: {
+    networkIdleTime: 500,
+    quietTime: 200,
+    maxSettleTime: 2000
+  },
+  // PNG encoding runs on the main thread of the browser, shared by all the captures: the large
+  // ones are encoded fast (2-3x quicker, 1.1-1.5x bigger files)
+  pngFastEncodingPixels: 1500000,
   concurrency: 5,
   inspectConcurrency: 1, // concurrent /inspect renders, each one holds a browser page
   defaultLang: 'fr-FR',
@@ -18,7 +27,6 @@ module.exports = {
   maxAnimationFrames: 1800, // 2 minutes at 15fps
   puppeteerLaunchOptions: {
     executablePath: '/usr/bin/google-chrome-stable',
-    // args: ['--use-gl=egl', '--use-angle=swiftshader', '--in-process-gpu'],
     args: [],
     headless: true
   },

@@ -113,14 +113,21 @@ router.get('/screenshot', auth, async (req, res, next) => {
         if (typeof req.query.filename === 'string') res.attachment(req.query.filename.replace('.png', '.gif'))
         res.send(buffer)
       } else {
-        const buffer = await page.screenshot({ fullPage: req.query.height === 'auto' })
-        debug(`[${target}] png screenshot is taken`)
-        timer.type = 'png'
+        // a gif was asked from a page that does not support animation: a png is returned
+        const imageType = (type === 'jpg' || type === 'jpeg') ? 'jpeg' : 'png'
+        const extension = imageType === 'jpeg' ? type : 'png'
+        const fullPage = req.query.height === 'auto'
+        // png encoding runs on the browser's main thread, shared by all captures: the large
+        // captures are encoded for speed (cf benchmark/FINDINGS.md)
+        const optimizeForSpeed = imageType === 'png' && (fullPage || width * height > config.pngFastEncodingPixels)
+        const buffer = await page.screenshot({ fullPage, type: imageType, optimizeForSpeed })
+        debug(`[${target}] ${imageType} screenshot is taken`)
+        timer.type = imageType
         if (req.query.timer === 'true') {
           res.send(timer.times)
         } else {
-          res.type(type)
-          if (typeof req.query.filename === 'string') res.attachment(req.query.filename.replace('.gif', '.' + type))
+          res.type(extension)
+          if (typeof req.query.filename === 'string') res.attachment(req.query.filename.replace(/\.(gif|png|jpe?g)$/, '.' + extension))
           res.send(buffer)
         }
       }
@@ -263,7 +270,7 @@ router.get('/inspect', async (req, res) => {
         let buffer
         if (fullPage) {
           const height = await page.evaluate(() => document.documentElement.scrollHeight)
-          buffer = await page.screenshot({ captureBeyondViewport: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
+          buffer = await page.screenshot({ captureBeyondViewport: true, optimizeForSpeed: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(height, maxFullPageHeight) } })
         } else {
           buffer = await page.screenshot()
         }

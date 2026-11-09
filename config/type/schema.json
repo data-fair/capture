@@ -21,6 +21,8 @@
     "defaultLang",
     "defaultTimezone",
     "screenshotTimeout",
+    "wait",
+    "pngFastEncodingPixels",
     "maxAnimationFrames"
   ],
   "properties": {
@@ -92,6 +94,30 @@
     },
     "screenshotTimeout": {
       "type": "number"
+    },
+    "wait": {
+      "type": "object",
+      "description": "How long a page that does not call window.triggerCapture is waited for",
+      "additionalProperties": false,
+      "required": ["networkIdleTime", "quietTime", "maxSettleTime"],
+      "properties": {
+        "networkIdleTime": {
+          "type": "number",
+          "description": "milliseconds without any network request before the page is considered loaded"
+        },
+        "quietTime": {
+          "type": "number",
+          "description": "then, milliseconds without DOM mutation, animation frame, finite animation or font loading before the capture"
+        },
+        "maxSettleTime": {
+          "type": "number",
+          "description": "the longest wait for that quiet, after the network is idle"
+        }
+      }
+    },
+    "pngFastEncodingPixels": {
+      "type": "number",
+      "description": "above this number of pixels, and for full page captures, PNG screenshots are encoded for speed rather than size"
     },
     "maxAnimationFrames": {
       "type": "number"
