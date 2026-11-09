@@ -20,6 +20,14 @@ export const gifEncodePiscina = new Piscina<GifEncodeTask, Uint8Array>({
 // a pool emits 'error' when a thread dies with no task in flight; without a listener it crashes the process
 gifEncodePiscina.on('error', (err) => log.error('gif encoding worker error', { code: 'piscina-gif-encode', err }))
 
+// a typed array alone in its ArrayBuffer, so that the ArrayBuffer can be transferred to a worker.
+// puppeteer returns Buffers decoded from base64, the small ones are slices of the shared Buffer
+// pool (not transferable, and other buffers live in it): those are copied, the others kept
+const ownBuffer = (frame: Uint8Array) => {
+  if (frame.byteOffset === 0 && frame.byteLength === frame.buffer.byteLength && !(frame.buffer instanceof SharedArrayBuffer)) return frame
+  return new Uint8Array(frame)
+}
+
 export const capture = async (target: string, page: Page, width: number, height: number) => {
   let stopped = false
   const frames: Uint8Array[] = []
@@ -36,11 +44,12 @@ export const capture = async (target: string, page: Page, width: number, height:
       new Promise(resolve => setTimeout(resolve, config.screenshotTimeout))
     ])
     if (!buffer) throw new Error(`Failed to capture animation frame of page "${target}" before timeout`)
-    frames.push(buffer)
+    frames.push(ownBuffer(buffer))
   }
   debug(`[${target}] ${frames.length} frames taken, encode the gif`)
   // 15fps seams like a good compromise for a gif
-  const raw = await gifEncodePiscina.run({ width, height, frameRate: 15, frames })
+  // the frames are transferred to the worker, not copied: they are not usable here afterwards
+  const raw = await gifEncodePiscina.run({ width, height, frameRate: 15, frames }, { transferList: frames.map(f => f.buffer as ArrayBuffer) })
   debug(`[${target}] gif screenshot is taken`)
   return await optimizeGif(Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength), 2)
 }

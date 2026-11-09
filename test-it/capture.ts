@@ -200,6 +200,12 @@ describe('capture', () => {
     const size1 = Number(res.headers['content-length'])
     assert.ok(size1 < 100000)
 
+    // a small gif is encoded in a slice of the Buffer pool of the worker, it must be returned anyway
+    res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html', type: 'gif', width: 100, height: 50 }, responseType: 'arraybuffer' })
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['content-type'], 'image/gif')
+    assert.equal(Buffer.from(res.data).subarray(0, 3).toString(), 'GIF')
+
     res = await ax.get('screenshot', { params: { key, target: origin + '/test/resources/test-anim.html', filename: 'test.gif' } })
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'image/gif')

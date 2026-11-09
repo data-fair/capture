@@ -25,7 +25,14 @@ export default async ({ width, height, frameRate, frames }: GifEncodeTask) => {
   }
   gif.finish()
   await ended
-  const result = Buffer.concat(chunks)
-  // transferred to the main thread, not copied
-  return move(new Uint8Array(result.buffer, result.byteOffset, result.byteLength))
+  // the chunks are joined in an ArrayBuffer of our own, then transferred to the main thread, not
+  // copied. Buffer.concat would not do: below half of Buffer.poolSize it returns a slice of the
+  // shared Buffer pool, which cannot be transferred (DataCloneError)
+  const result = new Uint8Array(chunks.reduce((size, chunk) => size + chunk.byteLength, 0))
+  let offset = 0
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return move(result)
 }
