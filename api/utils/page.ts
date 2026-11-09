@@ -206,7 +206,9 @@ export const withPage = async (
         }
       }
     }
-    debugPage(page)
+    // the console listener costs 2 CDP round trips per argument of every console message, on the
+    // main thread of the service: only paid when the debug output is enabled (DEBUG=capture)
+    if (debug.enabled) debugPage(page)
     inspect?.onPage?.(page)
     timer.step('newPage')
 
