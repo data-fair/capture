@@ -1,7 +1,12 @@
+const { existsSync, readFileSync } = require('node:fs')
+const { parseEnv } = require('node:util')
+
+// only TEST_API_PORT is read from .env (dev/default.env): the other values a .env may hold are
+// those of the dev API (PORT, secrets...), not of the tests
+const dotenv = existsSync('.env') ? parseEnv(readFileSync('.env', 'utf8')) : {}
+
 module.exports = {
-  // a port drawn per checkout in .env (dev/dev.json, loaded by the test script) so worktrees run
-  // their tests at the same time; 5607 without .env (CI)
-  port: Number(process.env.TEST_API_PORT || 5607),
+  port: Number(process.env.TEST_API_PORT || dotenv.TEST_API_PORT || 6101),
   screenshotTimeout: 2000,
   onlySameHost: true,
   useHostHeader: true,
