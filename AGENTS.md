@@ -12,38 +12,27 @@ only), Express 5.
 
 ## Dev environment
 
-The user starts the dev environment of a checkout with `npm run dev-zellij` (zellij >= 0.44,
-session named after the checkout directory). Agents never start or kill the session, and act on
-processes only through `df-dev`:
+A minimal dev path, no extra tooling and no containers (in development capture runs without
+authentication: no `privateDirectoryUrl`):
 
 ```bash
-npx --no df-dev status                # panes (running / exited + code, readiness), dev processes memory
-npx --no df-dev logs api -n 100       # last lines of a pane: api, status
-npx --no df-dev restart api           # Ctrl+C, rerun, then wait for /api/v1/api-docs.json
+npm run dev          # .env from dev/default.env when absent, dev-setup, then the api
+npm run dev-deps     # only writes .env from dev/default.env when absent
+npm run dev-setup    # generated types and puppeteer's chrome-headless-shell, idempotent
+npm run dev:api      # the api alone (nodemon), on DEV_API_PORT (6100 by default)
 ```
 
-- Read the logs before restarting: nodemon already reloads the api on file changes. Restart only a
-  pane that exited, hangs, or needs new env.
-- If `restart` answers "not ready", report to the user with the logs instead of retrying.
-- Never use `kill`, `zellij action`, nor `npm ci` / `npm install` while the env runs.
-- Always `npx --no`: a bare `npx df-dev` would download an unrelated public package.
-- No containers: in development capture runs without authentication.
-
-Each git worktree gets its own `.env` (ports drawn by `npx --no df-dev setup`, do not edit them by
-hand). From the main checkout:
-
-```bash
-npx --no df-worktree feat-xyz          # ../capture_feat-xyz: npm ci + df-dev setup (.env, types)
-npx --no df-worktree-delete feat-xyz   # zellij session, then the worktree
-```
-
-Branch names: letters, digits, `.`, `_`, `-`, no `/`, and `capture_<branch>` at most 60 characters.
+- `dev/default.env` holds the fixed default ports (block 6100-6149): `DEV_API_PORT` for the dev
+  api, `TEST_API_PORT` for the tests. `.env` overrides it and is never overwritten.
+- The dev config reads its values through the production env names (`PORT`, `PUBLIC_URL`,
+  `ONLY_SAME_HOST`, `SECRET_INSPECT`...): an environment that runs the api sets them over it.
+- nodemon already reloads the api on file changes.
 
 ## Testing
 
-`node:test` suites in `test-it/`, they start the API in-process on `TEST_API_PORT` (`.env`) and
-need gifsicle on the machine and puppeteer's chrome-headless-shell
-(`npx puppeteer browsers install chrome-headless-shell`).
+`node:test` suites in `test-it/`, they start the API in-process on `TEST_API_PORT` (read from
+`.env`, 6101 without it) and need gifsicle on the machine and puppeteer's chrome-headless-shell
+(`npm run dev-setup`).
 
 ```bash
 npm test                                   # all tests

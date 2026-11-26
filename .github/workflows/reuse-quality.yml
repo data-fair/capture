@@ -21,9 +21,13 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    # the browser of the tests, the version that matches puppeteer
-    - name: Install chrome-headless-shell
-      run: npx puppeteer browsers install chrome-headless-shell
+    # the minimal dev path: .env from dev/default.env, then the browser of the tests (the
+    # version that matches puppeteer) and the generated types
+    - name: Init .env
+      run: cp dev/default.env .env
+
+    - name: Dev setup
+      run: npm run dev-setup
 
     - name: Lint
       run: npm run lint
@@ -34,7 +38,7 @@ jobs:
     - name: Check types
       run: npm run check-types
 
-    # no containers nor .env: the tests start the API in-process on port 5607
+    # no containers: the tests start the API in-process on TEST_API_PORT
     - name: Run tests
       run: npm run test
 

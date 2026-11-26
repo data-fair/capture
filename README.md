@@ -24,7 +24,7 @@ Build and run the docker image:
 
     docker buildx build -t capture --progress plain --load . && docker run --rm -it --security-opt seccomp=$(pwd)/seccomp.json -p 5607:5607 -p 9090:9090 -e DEBUG=capture,timer -e ONLY_SAME_HOST=false -e SECRET_CAPTURE=capture -e SECRET_INSPECT=inspect -e HELMET_ACTIVE=false -e PORT=5607 --name capture capture
 
-Check the service with these examples (in the dev environment, replace 5607 with `DEV_API_PORT` from `.env`):
+Check the service with these examples (in the dev environment, replace 5607 with `DEV_API_PORT` from `.env`, 6100 by default):
 
   - [simple screenshot](http://localhost:5607/api/v1/screenshot?key=capture&target=http://localhost:5607/test/resources/test1.html)
   - [custom size](http://localhost:5607/api/v1/screenshot?key=capture&target=http://localhost:5607/test/resources/test1.html&width=200&height=150)
