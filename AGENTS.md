@@ -42,6 +42,12 @@ npm run test-base test-it/capture.ts       # one file
 When iterating, run only the related file. The pre-push hook runs `npm run quality` (lint,
 build-types, check-types, tests, audit).
 
+`make animated gif screenshot of a page` flakes on a loaded machine (check `/proc/loadavg` before
+calling it a regression): its 16 frames (`test-it/resources/test-anim.html`) must fit in
+`screenshotTimeout * 2` (`api/utils/page.ts`), 4 s with the test config. Do not raise
+`screenshotTimeout` in `config/test.cjs`: `make prints of a page that is never idle` asserts a
+count reached inside that ~2 s window. Lower the frame count or give animations their own budget.
+
 ## Linting & type checking
 
 ```bash
